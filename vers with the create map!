@@ -118,13 +118,17 @@ def createMap():
   return theMap
 
 def defineMap(map):
-   #notes: room0 = secret room, room 1 = kitchen, room 2 = bedroom 1, room 3 = bedroom 2
-   #room 4 = study, room 5 = living room
-   theOptions = list(range(6))
+   #notes: room1 = secret room, room 2 = kitchen, room 3 = bedroom 1, room 4 = bedroom 2
+   #room 5 = study, room 6 = living room
+   theOptions = list(range(7))
+   theOptions.remove(0)
    for row in range(3):
       for col in range(3):
          if map[row][col] == 1:
-            map
+            place = random.choice(theOptions)
+            map[row][col] = place
+            theOptions.remove(place)
+   return map
    
 
 # class Enemy:
