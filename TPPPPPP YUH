@@ -1,0 +1,141 @@
+import random
+
+#objects
+class objects:
+  def __init__(self):
+    #normal objects
+    self.hammer = 0
+    self.wrench = None
+    self.BSkey = None
+    self.convLens = None
+    self.concLens = None
+    self.Dtreat = None
+    self.normItemsList = [self.hammer,self.wrench,self.BSkey,self.convLens,self.concLens,self.Dtreat]
+    self.silverKey = 0
+    self.bronzeKey = None
+    self.peices = []
+    self.goldKey = None
+    self.tracker = None
+    self.secretItemsList = [self.silverKey,self.bronzeKey,self.peices,self.goldKey,self.tracker]
+
+  #there are 6 normal objects and 4 secret objects(with an additional 5 peices you need to find)
+  def placeSecretObjects(self):
+    peices = []
+    itemDict = {'silverKey':0,'bronzeKey':0,'peices':None,'goldKey':0,'tracker':0}
+    possibleNums = list(range(9))
+    #giving each item a random position 0-9, representing a spot 
+    for item in itemDict:
+      if item == 'peices':
+        toAdd = []
+        for _ in range(5):
+            number = random.choice(possibleNums)
+            toAdd.append(number)
+            possibleNums.remove(number)
+        itemDict['peices'] = toAdd
+      else:
+        number = random.choice(possibleNums)
+        itemDict[item] = number
+        possibleNums.remove(number)
+    self.peices = itemDict['peices']
+    self.silverKey = itemDict['silverKey']
+    self.bronzeKey = itemDict['bronzeKey']
+    self.goldKey = itemDict['goldKey']
+    self.tracker = itemDict['tracker']
+  def placeNormObjects(self):
+    itemDict = {'hammer':0,'wrench':0,'BSkey':0,'convLens':0,'concLens':0,'Dtreat':0}
+    possibleNums = list(range(6))
+    #giving each item a random position 0-6, representing a spot 
+    for item in itemDict:
+      number = random.choice(possibleNums)
+      itemDict[item] = number
+      possibleNums.remove(number)
+    self.hammer = itemDict['hammer']
+    self.wrench = itemDict['wrench']
+    self.BSkey = itemDict['BSkey']
+    self.convLens = itemDict['convLens']
+    self.concLens = itemDict['concLens']
+    self.Dtreat = itemDict['Dtreat']
+
+def createMap():
+  theMap = [[0,0,0],
+            [0,0,0],
+            [0,0,0]] #(empty), 9 cells total
+  # the numbered positions for reference are: 
+  mapNumRef = [[0,1,2],
+               [3,4,5],
+               [6,7,8]]
+  theOptions = list(range(8))
+  count = 6 
+  rows = 2
+  cols = 2
+  tries = 0
+  while count > 0:
+    place = random.choice(theOptions)
+    if place == 0:
+      row = 0
+      col = 0
+    elif place%3 == 0:
+        row = (place//3)
+        col = place-(place//3)*3
+    else:
+        row =place//3
+        col = (place)-(place//3)*3
+    theMap[row][col] = 1
+    check = []
+    # (row+1,col), (row+1,col+1), (row+1,col-1), (row,col+1),(row,col-1),(row-1,col),(row-1,col-1),(row-1,col+2)
+    if count >= 3:
+       check = [1]
+    else:
+        for i in range(3):
+           if i == 1:
+              continue
+           if 0<= (col-1 + i) <= cols:
+                if theMap[row][col-1 + i] == 1:
+                    check.append(1)
+           if 0<= (row-1+i) <= rows:
+                if theMap[row-1 +i][col] ==1:
+                    check.append(1)
+           else:
+             continue
+    if len(check) >= 1 and count > 2:
+       count -=1
+       theOptions.remove(place)
+    #so that at least two of the rooms are connected to two other rooms 
+    elif count <= 2 and len(check) >=2:
+       count -=1
+       theOptions.remove(place)
+    #since this map below and its mirror wouldn't be ideal to evade the enemy   
+    elif count ==1 and (theMap == [[1,1,0],[0,1,1],[1,1,0]] or theMap == [[0,1,1],[1,1,0],[0,1,1]]):
+       theMap[row][col] = 0
+    elif tries >= 20:
+        theMap = [[0,0,0],[0,0,0],[0,0,0]]
+        count = 6
+        theOptions = list(range(8))
+    else:
+       theMap[row][col] = 0
+       tries +=1 
+#   print('yuhhhh',theMap)
+  return theMap
+
+def defineMap(map):
+   #notes: room0 = secret room, room 1 = kitchen, room 2 = bedroom 1, room 3 = bedroom 2
+   #room 4 = study, room 5 = living room
+   theOptions = list(range(6))
+   for row in range(3):
+      for col in range(3):
+         if map[row][col] == 1:
+            map
+   
+
+# class Enemy:
+    #when game starts, the enemy is in the secret room
+    #  
+
+map = createMap()
+print(map)
+defineMap(map)
+theRun = objects()
+theRun.placeNormObjects()
+theRun.placeSecretObjects()
+print(theRun.peices)
+
