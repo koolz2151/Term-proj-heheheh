@@ -1,0 +1,687 @@
+import random
+from cmu_graphics import *
+# from PIL import Image
+# import os, pathlib
+
+
+#objects
+class objects:
+  def __init__(self):
+    #normal objects
+    self.hammer = 0
+    self.wrench = None
+    self.BSkey = None
+    self.convLens = None
+    self.concLens = None
+    self.Dtreat = None
+    self.normItemsList = [self.hammer,self.wrench,self.BSkey,self.convLens,self.concLens,self.Dtreat]
+    self.silverKey = 0
+    self.bronzeKey = None
+    self.peices = []
+    self.goldKey = None
+    self.tracker = None
+    self.secretItemsList = [self.silverKey,self.bronzeKey,self.peices,self.goldKey,self.tracker]
+
+  #there are 6 normal objects and 4 secret objects(with an additional 5 peices you need to find)
+  def placeSecretObjects(self):
+    peices = []
+    itemDict = {'silverKey':0,'bronzeKey':0,'peices':None,'goldKey':0,'tracker':0}
+    possibleNums = list(range(9))
+    #giving each item a random position 0-9, representing a spot 
+    for item in itemDict:
+      if item == 'peices':
+        toAdd = []
+        for _ in range(5):
+            number = choice(possibleNums)
+            toAdd.append(number)
+            possibleNums.remove(number)
+        itemDict['peices'] = toAdd
+      else:
+        #random.choice function source: https://www.w3schools.com/python/ref_random_choice.asp
+        number = choice(possibleNums)
+        itemDict[item] = number
+        possibleNums.remove(number)
+    self.peices = itemDict['peices']
+    self.silverKey = itemDict['silverKey']
+    self.bronzeKey = itemDict['bronzeKey']
+    self.goldKey = itemDict['goldKey']
+    self.tracker = itemDict['tracker']
+  def placeNormObjects(self):
+    self.itemDict = {'hammer':0,'wrench':0,'BSkey':0,'convLens':0,'concLens':0,'Dtreat':0}
+    possibleNums = list(range(6))
+    #giving each item a random position 0-6, representing a spot 
+    for item in self.itemDict:
+      number = choice(possibleNums)
+      self.itemDict[item] = number
+      possibleNums.remove(number)
+    self.hammer = self.itemDict['hammer']
+    self.wrench = self.itemDict['wrench']
+    self.BSkey = self.itemDict['BSkey']
+    self.convLens = self.itemDict['convLens']
+    self.concLens = self.itemDict['concLens']
+    self.Dtreat = self.itemDict['Dtreat']
+  def allNorms(self):
+     return self.itemDict
+
+class playerhehe:
+   def __init__(self):
+      self.itemsStored = []
+      self.itemHeld = None
+
+   def pickup(self,item):
+      self.itemsStored.append(item)
+   
+   def holdItem(self, item):
+      self.itemHeld = item
+
+   def releaseItem(self):
+      self.itemHeld = None
+
+   def itemHeld(self):
+      return self.itemHeld
+   
+   def giveInventory(self):
+      return self.itemsStored 
+
+   def useItem(self,item,location):
+      # if item == app.dogTreat:
+      #    if location == 
+      pass
+   pass
+
+def createMap():
+  theMap = [[0,0,0],
+            [0,0,0],
+            [0,0,0]] #(empty), 9 cells total
+  # the numbered positions for reference are: 
+  mapNumRef = [[0,1,2],
+               [3,4,5],
+               [6,7,8]]
+  theOptions = list(range(8))
+  count = 6 
+  rows = 2
+  cols = 2
+  tries = 0
+  while count > 0:
+    place = choice(theOptions)
+    if place == 0:
+      row = 0
+      col = 0
+    elif place%3 == 0:
+        row = (place//3)
+        col = place-(place//3)*3
+    else:
+        row =place//3
+        col = (place)-(place//3)*3
+    theMap[row][col] = 1
+    check = []
+    # (row+1,col), (row+1,col+1), (row+1,col-1), (row,col+1),(row,col-1),(row-1,col),(row-1,col-1),(row-1,col+2)
+    if count >= 3:
+       check = [1]
+    else:
+        for i in range(3):
+           if i == 1:
+              continue
+           if 0<= (col-1 + i) <= cols:
+                if theMap[row][col-1 + i] == 1:
+                    check.append(1)
+           if 0<= (row-1+i) <= rows:
+                if theMap[row-1 +i][col] ==1:
+                    check.append(1)
+           else:
+             continue
+    if len(check) >= 1 and count > 2:
+       count -=1
+       theOptions.remove(place)
+    #so that at least two of the rooms are connected to two other rooms 
+    elif count <= 2 and len(check) >=2:
+       count -=1
+       theOptions.remove(place)
+    #since this map below and its mirror wouldn't be ideal to evade the enemy   
+    elif count ==1:
+       theMap[row][col] = 0
+    elif tries >= 20:
+        theMap = [[0,0,0],[0,0,0],[0,0,0]]
+        count = 6
+        theOptions = list(range(8))
+    else:
+       theMap[row][col] = 0
+       tries +=1 
+  return theMap
+
+def defineMap(map):
+   #notes: room1 = secret room, room 2 = kitchen, room 3 = bedroom 1, room 4 = bedroom 2
+   #room 5 = study, room 6 = living room
+   theOptions = list(range(7))
+   theOptions.remove(0)
+   for row in range(3):
+      for col in range(3):
+         if map[row][col] == 1:
+            place = choice(theOptions)
+            map[row][col] = place
+            theOptions.remove(place)
+   return map
+            
+class Enemy:
+    #when game starts, the enemy is in the secret room
+    def __init__(self,map):
+       self.Epath = []
+       self.map = map
+       self.gameOver = False
+       for i in range(3):
+          for j in range(3):
+             if map[i][j] == 1:
+                self.Erow = i
+                self.Ecol = j
+       for i in range(3):
+          for j in range(3):
+             if i != self.Erow and j != self.Ecol:
+                #placing player randomly where the enemy isn't at
+                if map[i][j] != 0:
+                   self.Prow = i
+                   self.Pcol = j  
+        
+    def placement(self):
+       return([[self.Prow,self.Pcol],[self.Erow,self.Ecol]])
+
+    def playerMove(self,currSide,map,Prow,Pcol):
+       #A=top, B= left, C=back,D=right
+       if currSide == 'A':
+          newRow = Prow-1
+          if 0<= newRow < 3:
+             if map[newRow][Pcol] != 0:
+                return (newRow,Pcol)
+          else:
+             return (Prow,Pcol)
+       elif currSide == 'B':
+          newCol = Pcol-1
+          if 0 <= newCol<3:
+             if map[Prow][newCol] != 0:
+                return (Prow,newCol)
+          else:
+             return (Prow,Pcol)
+       elif currSide == 'C':
+          newRow = Prow +1  
+          if 0<=newRow < 3:
+             if map[newRow][Pcol] != 0:
+                return (newRow,Pcol)
+          else:
+             return (Prow,Pcol)
+       elif currSide == 'D':
+          newCol = Pcol +1
+          if 0<=newCol < 3:
+             if map[Prow][newCol] != 0:
+                return (Prow,newCol)
+          else:
+             return (Prow,Pcol)
+       return (Prow,Pcol)
+          
+          
+#sanity bar, distraction  
+# 
+#      
+       #bfs backtracking - source = tpguide pathfinding and 
+       #    https://favtutor.com/blogs/breadth-first-search-python#:~:text=Breadth%2DFirst%20Search%20is%20a,graph%20is%20almost%20the%20same.
+#     def isGameOver(self):
+#        if self.gameOver == True:
+#           return True
+#     def enemyMove(self):
+#        return enemyMoves(self.map,self.Erow,self.Ecol,self.Prow,self.Pcol,self.Epath)
+# def enemyMoves(map,Erow,Ecol,Prow,Pcol,path):
+#    possibleMoves = [[0,1],[0,-1],[-1,0],[1,0]]
+#    if Erow == Prow and Ecol== Pcol:
+#       return path 
+#    else:
+#       for move in possibleMoves:
+#          Erow+=move[0]
+#          Ecol+=move[1]
+#          print(Ecol,Erow)
+#          if isLegalE(map,Erow,Ecol):
+#             path+=[Erow,Ecol]
+#             solution = enemyMoves(map,Erow,Ecol,Prow,Pcol,path)
+#             print('uyyuh',solution)
+#             if solution != None:
+#                return path
+#             else:
+#                return None
+#          else:
+#             Erow-=move[0]
+#             Ecol-=move[1]
+#       return None
+# def isLegalE(map,Erow,Ecol):
+   # if 0<= Erow <=2 and 0<=Ecol<=2:
+   #    if map[Erow][Ecol] != 0:
+   #       return True
+   # else:
+   #    return False  
+     
+##### tests ######
+# tempMap = createMap()
+# print(tempMap)
+# map = defineMap(tempMap)
+# theRun = objects()
+# theRun.placeNormObjects()
+# theRun.placeSecretObjects()
+# print(theRun.peices)
+
+#room graphics :,)
+#living room 
+#side A = couch(use conv. lens to get secret item ), sideB = dogHouse(normal item), side C = TV, side D = scary painting(use conc. lens to get code) 
+
+#main graphics control
+def onAppStart(app):
+   #for random generation below
+   # tempMap = createMap()
+   # realMap = defineMap(tempMap)
+   # print(realMap)
+   app.map = [[1,2,3],[4,5,6],[0,0,0]]
+   app.player = playerhehe()
+   app.yuh = Enemy(app.map)
+   # print(app.yuh.enemyMove())
+   # app.yuh.stepping()
+   app.Prow = -1
+   app.Pcol = -1
+   (app.Prow,app.Pcol) = app.yuh.placement()[0] 
+   (app.Erow,app.Ecol) = app.yuh.placement()[1]
+   app.objects = objects()
+   app.objects.placeSecretObjects()
+   app.objects.placeNormObjects()
+   app.allNorms = app.objects.allNorms()
+   app.player = playerhehe()
+
+   #initialized things
+   app.tracker = True
+    
+   #initialized graphics - source  for creating graphics with images = hack112 project
+   #rooms
+   #source for all room outlines: https://helloartsy.com/one-point-perspective/
+   #loc 1
+   app.loc1_secRoom_A = 'loc1_sideA_trash.png'
+   app.loc1_secRoom_B = 'loc1_sideB_portraits.png'
+   app.loc1_secRoom_C = 'loc1_sideC_meassage3.png'
+   app.loc1_secRoom_D = 'loc1_sideD_door.png'
+   #loc 2
+   app.loc2_kitchen_A = 'loc2_sideA_shelvsa.png'
+   app.loc2_kitchen_B = 'loc2_sideB_table2.png'
+   app.loc2_kitchen_C = 'loc2_sideC_boards3.png'
+   app.loc2_kitchen_D = 'loc2_sideD_sink.png'
+   #loc 3
+   app.loc3_bedroom1_A = 'loc3_sideA_windoe.png'
+   app.loc3_bedroom1_B = 'loc3_sideB_safe2.png'
+   app.loc3_bedroom1_C = 'loc3_sideC_bed.png'
+   app.loc3_bedroom1_D = 'loc3_sideD_shelfs.png'
+   #loc 4
+   app.loc4_bedroom2_A = 'loc4_sideA_goldb.png'
+   app.loc4_bedroom2_B = 'loc4_sideB_bed2.png'
+   app.loc4_bedroom2_C = 'loc4_sideC_doggie2.png'
+   app.loc4_bedroom2_D = 'loc4_sideD_windows.png'
+   #loc 5
+   app.loc5_study_A = 'loc5_sideA_workoutoo2.png'
+   app.loc5_study_B = 'loc5_sideB_shelvz.png'
+   app.loc5_study_C = 'loc5_sideC_shelves.png'
+   app.loc5_study_D = 'loc5_sideD_desk.png'
+   #loc 6
+      #sources: https://www.textures4photoshop.com/tex/paint-stains-and-splatter/sketch-mask-texture-with-transparent-background.aspx
+   app.loc6_livingRoom_A = 'loc4_sideA_scribbles4.png' #should say loc6 lol
+   app.loc6_livingRoom_B = 'loc6_sideB_couches5.png'
+   app.loc6_livingRoom_C = 'loc6_sideC_doghouse.png'
+   app.loc6_livingRoom_D = 'loc6_sideD_TV2.png'
+   #clickable items in room
+    #normal items
+   app.hammer = ['hammer-drawing-9269.png',840,480,80,50]
+   app.wrench = ['adjustable-wrench-or-spanner-illustration-png.png',370,350,60,50]
+   app.BSkey = ['hammer-drawing-9269.png',840,480,80,50]
+   app.convLens = ['hammer-drawing-9269.png',840,480,80,50]
+   app.concLens = ['hammer-drawing-9269.png',840,480,80,50]
+   app.Dtreat = ['hammer-drawing-9269.png',840,480,80,50]
+   
+   #secret items
+    
+
+   #objects in each room
+   objectsInEachRoom(app)
+   #inventory tings
+   app.showInv = False
+   #positions
+   app.Plocation = app.map[app.Prow][app.Pcol]
+   app.Elocation = app.map[app.Erow][app.Ecol]
+   if app.Plocation == app.Elocation:
+      app.gameOver = True
+   else:
+      app.gameOver = False
+   app.currSide = 'A'
+   app.see = locationToSee(app,app.Plocation,None,app.currSide)
+   objectsInRoom(app)
+   if doorThere(app,app.map,app.Prow,app.Pcol,app.currSide):
+      app.doorThere = True
+   else:
+      app.doorThere = False
+
+def objectsInEachRoom(app):
+   print(app.allNorms)
+   theDic=app.allNorms
+   for key in theDic:
+      #checking what object it is
+      if key == 'hammer':
+         object = app.hammer
+      elif key == 'wrench':
+         object = app.wrench
+      elif key == 'BSkey':
+         object = app.BSkey
+      elif key == 'convLens':
+         object = app.convLens
+      elif key == 'concLens':
+         object = app.concLens
+      elif key == 'Dtreat':
+         object = app.Dtreat
+
+      #adding it to the correct place based on its val in the dict
+      if theDic[key]==0:
+         app.loc3CObjects = [object]
+      elif theDic[key] == 1:
+         app.loc5DObjects = [object]
+      elif theDic[key] == 2:
+         app.loc5BObjects = [object]
+         object[1]=370
+         object[2]=350
+      elif theDic[key]== 3:
+         app.loc1DObjects = [object]
+      elif theDic[key] ==4:
+         app.loc4AObjects = [object]
+         object[1]=840
+         object[2]=480
+      elif theDic[key]== 5:
+         app.loc2DObjects = [object]
+
+def objectsInRoom(app):
+   print('HHBBBBFBBF',app.see)
+   if app.see == app.loc3_bedroom1_C:
+      app.objectsInRoom = app.loc3CObjects
+   elif app.see == app.loc4_bedroom2_A:
+      app.objectsInRoom = app.loc4AObjects
+   elif app.see == app.loc5_study_B:
+      app.objectsInRoom = app.loc5BObjects
+   elif app.see == app.loc1_secRoom_D:
+      app.objectsInRoom = app.loc1DObjects
+   elif app.see == app.loc5_study_D:
+      app.objectsInRoom = app.loc5DObjects
+   elif app.see == app.loc2_kitchen_D:
+      app.objectsInRoom=app.loc2DObjects
+   else:
+      app.objectsInRoom = []
+   
+def locationToSee(app,numLoc,keyPressed,currSide):
+   #initializing string to reference
+   roomOrder = 'ABCD'
+   roomInd = roomOrder.find(currSide)
+   if keyPressed == 'right':
+      roomInd +=1
+      roomInd = roomInd%4
+   elif keyPressed == 'left':
+      roomInd -=1
+      roomInd = roomInd%4
+   resString = 'loc'
+   resString += str(numLoc)
+   resString += '_'
+   if numLoc == 1:
+      resString += 'secRoom_'
+   elif numLoc == 2:
+      resString += 'kitchen_'
+   elif numLoc == 3:
+      resString += 'bedroom1_'
+   elif numLoc == 4:
+      resString += 'bedroom2_'
+   elif numLoc == 5:
+      resString += 'study_'
+   elif numLoc == 6:
+      resString += 'livingRoom_'
+   resString += str(roomOrder[roomInd])
+   #changing the room based on the string
+   #secRoom
+   if 'secRoom_A' in resString:
+      app.currSide = 'A'
+      return app.loc1_secRoom_A
+   elif 'secRoom_B' in resString:
+      app.currSide = 'B'
+      return app.loc1_secRoom_B
+   elif 'secRoom_C' in resString:
+      app.currSide = 'C'
+      return app.loc1_secRoom_C
+   elif 'secRoom_D' in resString:
+      app.currSide = 'D'
+      return app.loc1_secRoom_D
+   #kitchen
+   elif 'kitchen_A' in resString:
+      app.currSide = 'A'
+      return app.loc2_kitchen_A
+   elif 'kitchen_B' in resString:
+      app.currSide = 'B'
+      return app.loc2_kitchen_B
+   elif 'kitchen_C' in resString:
+      app.currSide = 'C'
+      return app.loc2_kitchen_C
+   elif 'kitchen_D' in resString:
+      app.currSide = 'D'
+      return app.loc2_kitchen_D
+   #bedroom1
+   elif  'bedroom1_A' in resString:
+      app.currSide = 'A'
+      return  app.loc3_bedroom1_A 
+   elif  'bedroom1_B' in resString:
+      app.currSide = 'B'
+      return  app.loc3_bedroom1_B 
+   elif  'bedroom1_C' in resString:
+      app.currSide = 'C'
+      return  app.loc3_bedroom1_C
+   elif  'bedroom1_D' in resString:
+      app.currSide = 'D'
+      return  app.loc3_bedroom1_D
+   #bedroom2
+   elif 'bedroom2_A' in resString:
+      app.currSide = 'A'
+      print(app.loc4_bedroom2_A)
+      return app.loc4_bedroom2_A
+   elif 'bedroom2_B' in resString:
+      app.currSide = 'B'
+      print(app.loc4_bedroom2_B)
+      return app.loc4_bedroom2_B
+   elif 'bedroom2_C' in resString:
+      app.currSide = 'C'
+      print(app.loc4_bedroom2_C)
+      return app.loc4_bedroom2_C
+   elif 'bedroom2_D' in resString:
+      app.currSide = 'D'
+      print(app.loc4_bedroom2_D)
+      return app.loc4_bedroom2_D
+   #study
+   elif 'study_A' in resString:
+      app.currSide = 'A'
+      return app.loc5_study_A
+   elif 'study_B' in resString:
+      app.currSide = 'B'
+      return app.loc5_study_B
+   elif 'study_C' in resString:
+      app.currSide = 'C'
+      return app.loc5_study_C
+   elif 'study_D' in resString:
+      app.currSide = 'D'
+      return app.loc5_study_D
+   #living room
+   elif 'livingRoom_A' in resString:
+      app.currSide = 'A'
+      return app.loc6_livingRoom_A
+   elif 'livingRoom_B' in resString:
+      app.currSide = 'B'
+      return app.loc6_livingRoom_B
+   elif 'livingRoom_C' in resString:
+      app.currSide = 'C'
+      return app.loc6_livingRoom_C
+   elif 'livingRoom_D' in resString:
+      app.currSide = 'D'
+      return app.loc6_livingRoom_D
+def onKeyPress(app,key):
+   if key == 'left':
+      app.see = locationToSee(app,app.Plocation,'right',app.currSide)
+      objectsInRoom(app)
+   elif key == 'right':
+      app.see = locationToSee(app,app.Plocation,'left',app.currSide)
+      objectsInRoom(app)
+   if key == 'up':
+      (app.Prow,app.Pcol) = app.yuh.playerMove(app.currSide,app.map,app.Prow,app.Pcol)
+      app.Plocation = app.map[app.Prow][app.Pcol]
+      app.see = locationToSee(app,app.Plocation,'up',app.currSide)
+      objectsInRoom(app)
+def mouseOnArrow(app,mx,my):
+   if 10<=mx<=70:
+      if 405<= my <= 445:
+         app.see = locationToSee(app,app.Plocation,'right',app.currSide)
+         objectsInRoom(app)
+   elif 1101 <= mx <= 1159:
+      if 400<= my <= 445: 
+         app.see = locationToSee(app,app.Plocation,'left',app.currSide)
+         objectsInRoom(app)
+   print(mx,my) 
+def mouseOnDoor(app,mx,my):
+   if 500<=mx<=700:
+      if 220<=my<=600:
+         (app.Prow,app.Pcol) = app.yuh.playerMove(app.currSide,app.map,app.Prow,app.Pcol)
+         app.Plocation = app.map[app.Prow][app.Pcol]
+         app.see = locationToSee(app,app.Plocation,'up',app.currSide)
+         objectsInRoom(app)
+def mouseOnObject(app,mx,my):
+   for object in app.objectsInRoom:
+      (image,x,y,w,h) = object
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            clickedOnIt(app,object)
+def clickedOnIt(app,object):
+   #inventory-addable objects
+   if app.see == app.loc5_study_B:
+      app.loc5BObjects.remove(object)
+      app.player.itemsStored.append(object)
+   elif app.see == app.loc4_bedroom2_A:
+      app.loc4AObjects.remove(object)
+      app.player.itemsStored.append(object)
+   elif app.see == app.loc1_secRoom_D:
+      app.loc1DObjects.remove(object)
+      app.player.itemsStored.append(object)
+   elif app.see == app.loc3_bedroom1_C:
+      app.loc3CObjects.remove(object)
+      app.player.itemsStored.append(object)
+   elif app.see == app.loc5_study_D:
+      app.loc5DObjects.remove(object)
+      app.player.itemsStored.append(object)
+   elif app.see == app.loc2_kitchen_D:
+      app.loc2DObjects.remove(object)
+      app.player.itemsStored.append(object)
+def clickInv(app,mx,my):
+   if 7<=mx<=80:
+      if 7<=my<=80:
+         app.showInv = not app.showInv
+
+
+#source mousePress stuff = hack112 project
+def onMousePress(app,mouseX,mouseY):
+   mouseOnArrow(app,mouseX,mouseY)
+   mouseOnObject(app,mouseX,mouseY)
+   clickInv(app,mouseX,mouseY)
+   if doorThere(app,app.map,app.Prow,app.Pcol,app.currSide):
+      mouseOnDoor(app,mouseX,mouseY)
+
+#source door image = iheartcraftythings.com
+def doorThere(app,map,Prow,Pcol,currSide):
+   if currSide == 'A':
+      newRow = Prow-1
+      if 0<= newRow < 3:
+         if map[newRow][Pcol] != 0:
+            return True
+   elif currSide == 'B':
+      newCol = Pcol-1
+      if 0 <= newCol<3:
+         if map[Prow][newCol] != 0:
+            return True
+   elif currSide == 'C':
+      newRow = Prow +1  
+      if 0<=newRow < 3:
+         if map[newRow][Pcol] != 0:
+               return True
+   elif currSide == 'D':
+      newCol = Pcol +1
+      if 0<=newCol < 3:
+         if map[Prow][newCol] != 0:
+            return True
+   return False
+
+
+def redrawAll(app):
+   #drawing background
+   drawImage(app.see,0,0,width=1200,height=1000)
+   # drawImage('adjustable-wrench-or-spanner-illustration-png.png',370,350,width=60,height=50) #TEST
+
+   #drawing arrows
+   drawImage('aluminum-arrow-sign-k-1777_bk.png',1100,400,width=60,height=50)
+   drawImage('arrowflipppeed.png',10,400,width=60,height=50)
+
+   #drawing door
+   if doorThere(app,app.map,app.Prow,app.Pcol,app.currSide):
+      drawImage('door bae .png', 500,220,width=200,height=400)
+
+   #drawing items in room
+   for object in app.objectsInRoom:
+      (image,x,y,w,h) = object
+      drawImage(image,x,y,width=w,height=h)
+      
+   
+   #drawing inventory
+   drawRect(7,7,80,80,fill='lightCoral',border='gray',borderWidth=4)
+   if app.showInv == False:
+      drawLabel('push here',48,30,size=15)
+      drawLabel('for ur',48,50,size=15)
+      drawLabel('inventory',48,70,size=15,bold=True)
+   else:
+      drawLabel('push here',48,30,size=15)
+      drawLabel('to close da',48,50,size=15)
+      drawLabel('inventory',48,70,size=15,bold=True)
+      #all item boxes:
+      for i in range(8):
+         drawRect(87+i*80,7,80,80,fill='papayaWhip',border='gray',borderWidth=4)
+      #boxes for key peices:
+      for i in range(5):
+         if i<4:
+            drawRect(900+i*80,7,80,80,fill='purple',border='gray',borderWidth=4)
+         else:
+            drawRect(900+(i-2)*80,90,80,80,fill='purple',border='gray',borderWidth=4)
+      count = 0
+      for item in app.player.itemsStored:
+         print(item)
+         (image,x,y,w,h) = item
+         drawImage(image,87+count*80,7,width=80,height=80)
+         count+=1
+      count=0
+   
+   #drawing map on top of screen
+   for i in range(3):
+      for j in range(3):
+         if app.map[i][j] != 0:
+            drawRect(1100+(30*j),20+(30*i),30,30,fill = 'papayaWhip',border='gray')
+   for i in range(3):
+      for j in range(3):
+         if i == app.Prow and j == app.Pcol:
+            drawRect(1100+(30*j)+8,20+30*i+8,15,15,fill = 'lime',border='darkKhaki')
+            print(app.currSide)
+            if app.currSide == 'A':
+               drawRect(1100+(30*j)+8,20+30*i+3,15,5,fill = 'brown')   
+            elif app.currSide == 'B':
+               drawRect(1100+(30*j)+3,20+30*i+8,5,15,fill = 'brown')
+            elif app.currSide == 'C':
+               drawRect(1100+(30*j)+8,20+30*i+23,15,5,fill = 'brown')  
+            elif app.currSide == 'D':
+               drawRect(1100+(30*j)+23,20+30*i+8,5,15,fill = 'brown')
+         #draws enemy's position if the player has the tracker 
+         elif i == app.Erow and j == app.Ecol and app.tracker == True:
+            drawRect(1100+(30*j)+8,20+30*i+8,15,15,fill = 'red',border='mediumBlue')
+
+def main():
+    runApp(width=1200,height=1000)
+
+main()
