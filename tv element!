@@ -1,0 +1,1955 @@
+import random
+from cmu_graphics import *
+import os.path
+
+#saving function source: https://www.youtube.com/watch?v=6XOIdYqjzHY
+
+#check if file to save has been created
+file_exists = os.path.isfile("loadfile.txt")
+#load the text file
+def load(app):
+   if file_exists:
+      file = open("loadfile.txt","r")
+      savedTings = file.read()
+      file.close()
+   else:
+      savedTings = 'None;None;None'
+   loadEverything(app,savedTings)
+
+#save the file
+def save(s):
+   file = open("loadfile.txt","w")
+   file.write(s)
+   file.close()
+
+#set correct starting room
+def loadEverything(app,L):
+   app.see = None
+   app.player.piecesStored= []
+   app.player.itemsStored = []
+   app.player.lensesStored = []
+   resList = L.split(";")
+   if len(resList)>=1:
+      if resList[0] != None:
+         restartAll(app)
+         app.initialGameStart = False
+         app.see = L[0]
+   if len(resList)>=2:
+      if L[1] != None:
+         app.playerSanity = L[1]
+   if len(resList)>=3:
+      if L[2] != None:
+         for item in L[2]:
+            if item == app.piece1 or item == app.piece2 or item == app.piece3 or item == app.piece4 or  item == app.piece5:
+               app.player.piecesStored +=item
+            if item == app.convLens or item == app.concLens:
+               app.player.lensesStored += item
+            else:
+               app.player.itemsStored += item
+
+#objects
+class objects:
+  def __init__(self):
+    #normal objects
+    self.hammer = 0
+    self.wrench = None
+    self.rock = None
+    self.convLens = None
+    self.concLens = None
+    self.Dtreat = None
+    self.normItemsList = [self.hammer,self.wrench,self.rock,self.convLens,self.concLens,self.Dtreat]
+    self.silverKey = 0
+    self.bronzeKey = None
+    self.peices = []
+    self.goldKey = None
+    self.tracker = None
+    self.secretItemsList = [self.silverKey,self.bronzeKey,self.peices,self.goldKey,self.tracker]
+
+  #there are 6 normal objects and 4 secret objects(with an additional 5 peices you need to find)
+  def placeSecretObjects(self):
+    peices = []
+    self.secItemDict = {'silverKey':0,'bronzeKey':0,'peices':None,'goldKey':0,'tracker':0}
+    possibleNums = list(range(9))
+    #giving each item a random position 0-9, representing a spot 
+    for item in self.secItemDict:
+      if item == 'peices':
+        toAdd = []
+        for _ in range(5):
+            number = choice(possibleNums)
+            toAdd.append(number)
+            possibleNums.remove(number)
+        self.secItemDict['peices'] = toAdd
+      else:
+        #random.choice function source: https://www.w3schools.com/python/ref_random_choice.asp
+        number = choice(possibleNums)
+        #don't want the tracker, silver key, gold key, or the bronze key to be in either the 
+        #safe, the gold chest or the silver chest because then the game is too hard and/or impossible
+        while object == 'silverKey' and (number == 2 or number == 3 or number == 0):
+            number = choice(possibleNums)
+        while object == 'bronzeKey' and (number == 2 or number == 3 or number == 0):
+            number = choice(possibleNums)
+        while object == 'goldKey' and (number == 2 or number == 3 or number == 0):
+            number = choice(possibleNums)
+        while object == 'tracker' and (number == 2 or number == 3 or number == 0):
+            number = choice(possibleNums)   
+        self.secItemDict[item] = number
+        possibleNums.remove(number)
+    self.peices = self.secItemDict['peices']
+    self.silverKey = self.secItemDict['silverKey']
+    self.bronzeKey = self.secItemDict['bronzeKey']
+    self.goldKey = self.secItemDict['goldKey']
+    self.tracker = self.secItemDict['tracker']
+  def placeNormObjects(self):
+    self.itemDict = {'hammer':0,'wrench':0,'rock':0,'convLens':0,'concLens':0,'Dtreat':0}
+    possibleNums = list(range(6))
+    #giving each item a random position 0-6, representing a spot 
+    for item in self.itemDict:
+      number = choice(possibleNums)
+      self.itemDict[item] = number
+      possibleNums.remove(number)
+    self.hammer = self.itemDict['hammer']
+    self.wrench = self.itemDict['wrench']
+    self.rock = self.itemDict['rock']
+    self.convLens = self.itemDict['convLens']
+    self.concLens = self.itemDict['concLens']
+    self.Dtreat = self.itemDict['Dtreat']
+  def allNorms(self):
+     return self.itemDict
+  def allSecs(self):
+      #secs LOLL oops
+     return self.secItemDict
+
+class playerhehe:
+   def __init__(self):
+      self.itemsStored = []
+      self.peicesStored = []
+      self.lensesStored = []
+
+def createMap():
+  theMap = [[0,0,0],
+            [0,0,0],
+            [0,0,0]] #(empty), 9 cells total
+  # the numbered positions for reference are: 
+  mapNumRef = [[0,1,2],
+               [3,4,5],
+               [6,7,8]]
+  theOptions = list(range(8))
+  count = 6 
+  rows = 2
+  cols = 2
+  tries = 0
+  while count > 0:
+    place = choice(theOptions)
+    if place == 0:
+      row = 0
+      col = 0
+    elif place%3 == 0:
+        row = (place//3)
+        col = place-(place//3)*3
+    else:
+        row =place//3
+        col = (place)-(place//3)*3
+    theMap[row][col] = 1
+    check = []
+    # (row+1,col), (row+1,col+1), (row+1,col-1), (row,col+1),(row,col-1),(row-1,col),(row-1,col-1),(row-1,col+2)
+    if count >= 3:
+       check = [1]
+    else:
+        for i in range(3):
+           if i == 1:
+              continue
+           if 0<= (col-1 + i) <= cols:
+                if theMap[row][col-1 + i] == 1:
+                    check.append(1)
+           if 0<= (row-1+i) <= rows:
+                if theMap[row-1 +i][col] ==1:
+                    check.append(1)
+           else:
+             continue
+    if len(check) >= 1 and count > 2:
+       count -=1
+       theOptions.remove(place)
+    #so that at least two of the rooms are connected to two other rooms 
+    elif count <= 2 and len(check) >=2:
+       count -=1
+       theOptions.remove(place)
+    #since this map below and its mirror wouldn't be ideal to evade the enemy   
+    elif count ==1:
+       theMap[row][col] = 0
+    elif tries >= 20:
+        theMap = [[0,0,0],[0,0,0],[0,0,0]]
+        count = 6
+        theOptions = list(range(8))
+    else:
+       theMap[row][col] = 0
+       tries +=1 
+  return theMap
+
+def defineMap(map):
+   #notes: room1 = secret room, room 2 = kitchen, room 3 = bedroom 1, room 4 = bedroom 2
+   #room 5 = study, room 6 = living room
+   theOptions = list(range(7))
+   theOptions.remove(0)
+   for row in range(3):
+      for col in range(3):
+         if map[row][col] == 1:
+            place = choice(theOptions)
+            map[row][col] = place
+            theOptions.remove(place)
+   return map
+            
+class Enemy:
+    #when game starts, the enemy is in the secret room
+    def __init__(self,map):
+       self.Epath = []
+       self.map = map
+       for i in range(3):
+          for j in range(3):
+             if map[i][j] == 1:
+                self.Erow = i
+                self.Ecol = j
+       for i in range(3):
+          for j in range(3):
+             if i != self.Erow and j != self.Ecol:
+                #placing player randomly where the enemy isn't at
+                if map[i][j] != 0:
+                   self.Prow = i
+                   self.Pcol = j  
+        
+    def placement(self):
+       return([[self.Prow,self.Pcol],[self.Erow,self.Ecol]])
+    def playerMove(self,currSide,map,Prow,Pcol):
+       #A=top, B= left, C=back,D=right
+       if currSide == 'A':
+          newRow = Prow-1
+          if 0<= newRow < 3:
+             if map[newRow][Pcol] != 0:
+                return (newRow,Pcol)
+          else:
+             return (Prow,Pcol)
+       elif currSide == 'B':
+          newCol = Pcol-1
+          if 0 <= newCol<3:
+             if map[Prow][newCol] != 0:
+                return (Prow,newCol)
+          else:
+             return (Prow,Pcol)
+       elif currSide == 'C':
+          newRow = Prow +1  
+          if 0<=newRow < 3:
+             if map[newRow][Pcol] != 0:
+                return (newRow,Pcol)
+          else:
+             return (Prow,Pcol)
+       elif currSide == 'D':
+          newCol = Pcol +1
+          if 0<=newCol < 3:
+             if map[Prow][newCol] != 0:
+                return (Prow,newCol)
+          else:
+             return (Prow,Pcol)
+       return (Prow,Pcol)
+          
+    def enemyMove(self):
+       return enemyMoves(self.map,self.Erow,self.Ecol,self.Prow,self.Pcol,[])
+#enemyMoving backtracking framework from CS Acadamy
+def enemyMoves(map,Erow,Ecol,Prow,Pcol,path):
+   possibleMoves = [[0,1],[0,-1],[-1,0],[1,0]]
+   if Erow == Prow and Ecol== Pcol:
+      return path 
+   else:
+      for move in possibleMoves:
+         Erow+=move[0]
+         Ecol+=move[1]
+         if isLegalE(map,Erow,Ecol):
+            if [Erow,Ecol] not in path:
+               path+=[[Erow,Ecol]]
+               solution = enemyMoves(map,Erow,Ecol,Prow,Pcol,path)
+               if solution != None:
+                  return path
+               path.pop()
+         Erow-=move[0]
+         Ecol-=move[1]
+      return None
+def isLegalE(map,Erow,Ecol):
+   if 0<= Erow <=2 and 0<=Ecol<=2:
+      if map[Erow][Ecol] != 0:
+         return True
+   else:
+      return False  
+def checkGameOver(Erow,Ecol,Prow,Pcol):
+   if Erow == Prow:
+      if Ecol == Pcol:
+         return True
+   else:
+      return False
+##### tests ######
+# tempMap = createMap()
+# print(tempMap)
+# map = defineMap(tempMap)
+# theRun = objects()
+# theRun.placeNormObjects()
+# theRun.placeSecretObjects()
+# print(theRun.peices)
+
+#room graphics :,)
+#living room 
+
+#main graphics control
+def onAppStart(app):
+   restartAll(app)
+def restartAll(app):
+   #below will go to the start screen of game!
+   app.initialGameStart = True
+   
+   #backstory stuff
+   app.showBackStory = False
+   app.page1 = False
+   app.page2 = False
+   app.page3 = False
+   app.page4 = False
+   app.page5 = False
+   app.page6 = False
+   #for random generation below
+   # tempMap = createMap()
+   # realMap = defineMap(tempMap)
+   # print(realMap)
+   app.map = [[1,2,3],[4,6,5],[0,0,0]]
+   app.player = playerhehe()
+   app.yuh = Enemy(app.map)
+   app.Epath = app.yuh.enemyMove()
+   print(app.Epath)
+   app.Prow = -1
+   app.Pcol = -1
+   (app.Prow,app.Pcol) = app.yuh.placement()[0] 
+   (app.Erow,app.Ecol) = app.yuh.placement()[1]
+   app.objects = objects()
+   app.objects.placeSecretObjects()
+   app.objects.placeNormObjects()
+   app.allNorms = app.objects.allNorms()
+   app.player = playerhehe()
+
+   #initialized things
+   app.tracking = False
+   app.haveLens = False
+   app.lensChoice = 'none'
+   app.objectChoice = None
+   app.flashing = False
+   app.flash = False
+   app.showWarning = False
+   app.showMovement = False
+
+   app.CX = 0
+   app.CY = 0
+
+   app.tvON = False
+   app.tvChannel = 1
+   app.timeLeftTV = 100
+
+   app.yesHammer = False
+   app.yesrock = False
+   app.goldboxOpen = False
+   app.silvboxOpen = False
+   
+   app.showSafeNums = False
+   app.safeUSE = False
+
+   app.firstnum = '0'
+   app.secnum='0'
+   app.thirdnum='0'
+   app.fourthnum='0'
+   app.totalSafeNum = [app.firstnum,app.secnum,app.thirdnum,app.fourthnum]
+   app.safeSolved = False
+   correctSafeNumGenerator(app)
+   print(app.correctSafeNum)
+   app.safeOpen = False
+   #start page
+   app.showStartButton = False
+   app.showHelpButton = False
+   app.showLoadButton = False
+   app.showStoryButton = False
+   #game over tings
+   app.gameOver = False
+    
+   #initialized graphics - source  for creating graphics with images = hack112 project
+   #rooms
+   #source for all room outlines: 
+   # #background image = https://helloartsy.com/one-point-perspective/
+   # https://helloartsy.com/one-point-perspective/
+   #loc 1
+   app.loc1_secRoom_A = 'loc1_sideA_trash.png'
+   app.loc1_secRoom_B = 'loc1_sideB_portraits.png'
+   app.loc1_secRoom_C = 'loc1_sideC_meassage3.png'
+   app.loc1_secRoom_D = 'loc1_sideD_door.png'  
+   #loc 1 scary room oooo
+   #trash = https://www.twinkl.com.bh/illustration/kure-karakata-kure-kale-cite
+   #side scribbles= https://newenglanddiary.com/home/a1tupqj4t8ztv712c8x08he89jlxag/1/8/2017
+   #cake picture = https://www.saatchiart.com/print/Painting-Black-Forest-Cherry-Cake/1614312/8896148/view
+   #door = https://www.istockphoto.com/vector/cartoon-drawing-of-closed-door-with-welcome-text-on-mat-or-doormat-gm1134081161-301234914
+   #loc 2
+   app.loc2_kitchen_A = 'loc2_sideA_shelvsa.png'
+   app.loc2_kitchen_B = 'loc2_sideB_table2.png'
+   app.loc2_kitchen_C = 'loc2_sideC_boards3.png'
+   app.loc2_kitchen_D = 'loc2_sideD_sink.png'
+   #loc 2 kitchen yum
+   #shelves = https://www.caryndahm.com/blog/flat-shelfies
+   #plant = https://www.dreamstime.com/black-hand-drawn-herbs-plants-flowers-branches-florals-flower-pot-illustration-coloring-book-scrapbook-drawing-sketch-image175511270
+   #boards = http://www.heromachine.com/forums/reply/116220/
+   #oven = https://www.istockphoto.com/vector/isolated-vector-illustration-of-cooking-kitchen-oven-gm450678603-24923187
+   #sink = https://www.shutterstock.com/search/kitchen-sink-sketch
+   #fridge = https://www.istockphoto.com/search/2/image?mediatype=illustration&phrase=fridge+drawing
+   #table = https://www.dreamstime.com/illustration/cafe-kitchen-interior-table-chair-sketch.html 
+   #loc 3
+   app.loc3_bedroom1_A = 'loc3_sideA_windoe.png'
+   app.loc3_bedroom1_B = 'loc3_sideB_safe2.png'
+   app.loc3_bedroom1_C = 'loc3_sideC_bed.png'
+   app.loc3_bedroom1_D = 'loc3_sideD_shelfs.png'
+   #loc 3 bedroom 1 mmmmm
+   #window = https://www.theparisreview.org/blog/2013/09/06/lidija-dimkovska-skopje-macedonia/
+   #safe = https://www.istockphoto.com/vector/safe-bank-cell-simple-black-line-icons-vector-set-gm1153344898-313202097
+   #couch = https://www.youtube.com/watch?v=4G1Rhv8J8bc
+   #bed = https://www.vectorstock.com/royalty-free-vector/bed-icon-in-outline-style-isolated-on-white-vector-12879002
+   #study table = https://www.istockphoto.com/search/2/image?phrase=vehicle+interior+sketch
+   #shelf = https://www.istockphoto.com/search/2/image?mediatype=illustration&phrase=hand+drawn+doodle+books+shelves+collection
+   #loc 4
+   app.loc4_bedroom2_A = 'loc4_sideA_goldb.png'
+   app.loc4_bedroom2_B = 'loc4_sideB_bed2.png'
+   app.loc4_bedroom2_C = 'loc4_sideC_doggie2.png'
+   app.loc4_bedroom2_D = 'loc4_sideD_windows.png'
+   #loc 4 bedroom 2 mmmmmmmmm
+   #bed = https://www.istockphoto.com/vector/bed-illustration-drawing-engraving-ink-line-art-vector-gm954764554-260684358
+   #window = https://theartyteacher.com/drawing-a-view-through-a-window/
+   #another window = https://www.theparisreview.org/blog/2012/03/02/emma-larkin-bangkok/
+   #dog = https://easydrawingguides.com/how-to-draw-a-simple-dog/
+   #lock = https://www.kindpng.com/imgv/hJJbwmR_lock-clipart-golden-gold-lock-png-transparent-png/
+   #desk = https://www.pinterest.com/pin/illustration-about-office-desk-line-art-drawing-vector-doodle-desk-with-a-computer-and-office-accessories-i--321655598395187408/
+   #chest = https://www.istockphoto.com/vector/treasure-chest-coloring-page-for-kids-cartoon-style-opened-wooden-pirate-chests-gm1243361407-362868485
+   #loc 5
+   app.loc5_study_A = 'loc5_sideA_workoutoo2.png'
+   app.loc5_study_B = 'loc5_sideB_shelvz.png'
+   app.loc5_study_C = 'loc5_sideC_shelves.png'
+   app.loc5_study_D = 'loc5_sideD_desk.png'
+   #loc 5
+   #workout machine = https://www.123rf.com/photo_134589459_stock-vector-continuous-one-line-drawing-of-tredmill-machine-tools-for-fitness-and-gym-sport-theme-design-vector-.html
+   #book shelf = https://www.youtube.com/watch?v=2yAfal9lXGU
+   #coat closet = https://www.istockphoto.com/search/2/image?mediatype=illustration&phrase=man+organizing+closet
+   #desk = https://www.shutterstock.com/image-vector/sketch-workplace-front-computer-vector-illustration-1305069475
+   #couch = https://www.maxpixel.net/Interior-Sketch-Sofa-Element-Furniture-Living-Room-6560356
+   #plants = https://www.istockphoto.com/vector/hand-drawn-bookshelves-with-books-houseplants-and-little-souvenirs-a-cosy-place-gm1205717718-347435795
+   #shelvss = https://www.dreamstime.com/isolated-shelf-wall-household-draw-items-icon-vector-isolated-shelf-wall-draw-image205162854
+   #loc 6
+      #sources: https://www.textures4photoshop.com/tex/paint-stains-and-splatter/sketch-mask-texture-with-transparent-background.aspx
+   app.loc6_livingRoom_A = 'loc4_sideA_scribbles4.png' #should say loc6 lol
+   app.loc6_livingRoom_B = 'loc6_sideB_couches5.png'
+   app.loc6_livingRoom_C = 'loc6_sideC_doghouse.png'
+   app.loc6_livingRoom_D = 'loc6_sideD_TV2.png'
+   #loc 6
+   #texture = https://www.textures4photoshop.com/tex/paint-stains-and-splatter/sketch-mask-texture-with-transparent-background.aspx
+   #dog thing = https://www.redbubble.com/i/greeting-card/Cheems-by-Ettore13/48873588.5MT14
+   #dog house = https://www.istockphoto.com/vector/dog-house-gm863832732-143415963
+   #couhces = https://www.maxpixel.net/Interior-Sketch-Sofa-Element-Furniture-Living-Room-6560356
+   #TV = https://publicdomainvectors.org/en/free-clipart/Flat-screen-television-set-vector-image/10103.html
+   #lock = https://www.vectorstock.com/royalty-free-vector/silver-padlock-with-keyhole-isolated-on-white-vector-2733076
+
+   app.totalMap = ([[app.loc1_secRoom_A,app.loc1_secRoom_B,app.loc1_secRoom_C,app.loc1_secRoom_D],
+                     [app.loc6_livingRoom_A,app.loc6_livingRoom_B,app.loc6_livingRoom_C,app.loc6_livingRoom_D],
+                     [app.loc5_study_D,app.loc5_study_C,app.loc5_study_B,app.loc5_study_A],
+                     [app.loc4_bedroom2_A,app.loc4_bedroom2_B,app.loc4_bedroom2_C,app.loc4_bedroom2_D],
+                     [app.loc3_bedroom1_A,app.loc3_bedroom1_B,app.loc3_bedroom1_C,app.loc3_bedroom1_D],
+                     [app.loc2_kitchen_A,app.loc2_kitchen_B,app.loc2_kitchen_C,app.loc2_kitchen_D]])
+   #clickable items in room
+    #normal items
+   app.hammer = ['hammer-drawing-9269.png',840,480,80,50]
+   app.wrench = ['adjustable-wrench-or-spanner-illustration-png.png',370,350,60,50]
+   app.rock = ['kisscc0-rock-download-drawing-ilmenskie-rock-dull-bg2-5b74c65b802588.7648200315343796115249.png',173,356,50,40]
+   app.convLens = ['convv lens.png',1050,500,30,50]
+   app.concLens = ['conccccc.png',840,480,30,50]
+   app.Dtreat = ['5793514.png',840,100,50,50]
+   
+   #secret items
+   app.piece1 = ['Screen Shot 2023-04-20 at 9.23.22 PM.png',500,700,50,50]
+   app.piece2 = ['Screen Shot 2023-04-20 at 9.23.34 PM.png',500,700,50,50]
+   app.piece3 = ['Screen Shot 2023-04-20 at 9.23.41 PM.png',500,700,50,50]
+   app.piece4 = ['Screen Shot 2023-04-23 at 11.43.12 PM.png',500,700,50,50]
+   app.piece5 = ['Screen Shot 2023-04-23 at 11.43.18 PM.png',500,700,50,50]
+   app.tracker = ['da tracker.png',500,700,50,50]
+   app.silverKey = ['21-216008_silver-house-key-png.png',500,700,50,50]
+   app.goldKey = ['pngtree-golden-key-vector-png-image_8769908.png',500,700,50,50]
+   app.bronzeKey = ['bronze-key-hi.png',500,700,50,50]
+   #piecesssss
+   app.piece1There = False
+   app.piece2There = False
+   app.piece3There = False
+   app.piece4There = False
+   app.piece5There = False
+   #sanity metric 
+   app.playerSanity = 100
+   app.timeCount = 0
+   placingSanityThings(app)
+
+   #secret objects
+   app.allSecs = app.objects.allSecs()
+   print(app.allSecs)
+   #objects in each room
+   objectsInEachRoom(app)
+   #inventory tings
+   app.showInv = False
+   #positions
+   app.Plocation = app.map[app.Prow][app.Pcol]
+   app.Elocation = app.map[app.Erow][app.Ecol]
+   app.currSide = 'A'
+   app.see = locationToSee(app,app.Plocation,None,app.currSide)
+   #placing objects
+   secObjectsInEachPlace(app)
+   objectsInRoom(app)
+   print('----------')
+   print(app.INdog,'dog')
+   print(app.INsafe,'safe')
+   print(app.INboards,'boards')
+   print(app.INgoldbox,'gb')
+   print(app.INsilvbox,'sb')
+   print(app.INsink,'sink')
+   print(app.INshelf,'sgeld')
+   print(app.INtrash,'trash')
+   print(app.INwindow,'table')
+
+   if doorThere(app,app.map,app.Prow,app.Pcol,app.currSide):
+      app.doorThere = True
+   else:
+      app.doorThere = False
+
+#placing normal objects
+def objectsInEachRoom(app):
+   print(app.allNorms)
+   theDic=app.allNorms
+   for key in theDic:
+      #checking what object it is
+      if key == 'hammer':
+         object = app.hammer
+      elif key == 'wrench':
+         object = app.wrench
+      elif key == 'rock':
+         object = app.rock
+      elif key == 'convLens':
+         object = app.convLens
+      elif key == 'concLens':
+         object = app.concLens
+      elif key == 'Dtreat':
+         object = app.Dtreat
+      app.loc4CObjects = []
+      app.loc2CObjects = []
+      app.loc2BObjects = []
+      app.loc4DObjects = []
+      app.loc6DObjects = []
+      #adding it to the correct place based on its val in the dict
+      if theDic[key]==0:
+         app.loc3CObjects = [object]
+         object[1]=300
+         object[2]=550
+      elif theDic[key] == 1:
+         app.loc5DObjects = [object]
+         object[1]=173
+         object[2]=356
+      elif theDic[key] == 2:
+         app.loc5BObjects = [object]
+         object[1]=370
+         object[2]=350
+      elif theDic[key]== 3:
+         app.loc3DObjects = [object]
+         object[1]=800
+         object[2]=200
+      elif theDic[key] ==4:
+         app.loc4AObjects = [object]
+         object[1]=840
+         object[2]=480
+      elif theDic[key]== 5:
+         app.loc2DObjects = [object]
+         object[1]=460
+         object[2]=400
+# placing secret objects
+def secObjectsInEachPlace(app):
+   #possible places = 1:safe, 2:behind boards, 3: gold box, 4: silver box
+   #5: dog, 6: sink/oven, 7:shelf, 8: pile trash, 9:  in window lol 
+   app.INsafe = [] #0
+   app.INboards = [] #1
+   app.INgoldbox = [] #2
+   app.INsilvbox = [] #3
+   app.INdog = [] #4
+   app.INsink = [] #5
+   app.INshelf = [] #6
+   app.INtrash = [] #7
+   app.INtable = []
+   dic = app.allSecs
+   for item in dic:
+      if item != 'peices':
+         if item == 'silverKey':
+            object = app.silverKey
+         elif item == 'bronzeKey':
+            object = app.bronzeKey
+         elif item == 'goldKey':
+            object = app.goldKey
+         elif item == 'tracker':
+            object = app.tracker
+         if dic[item] == 0:
+            app.INsafe = object
+         if dic[item] == 1:
+            app.INboards = object
+            object[1]=900
+            object[2]=256
+         if dic[item] == 2:
+            app.INgoldbox = object
+         if dic[item] == 3:
+            app.INsilvbox = object
+         if dic[item] == 4:
+            app.INdog = object
+            object[1]=500
+            object[2]=700
+         if dic[item] == 5:
+            app.INsink = object
+         if dic[item] == 6:
+            app.INshelf = object
+            object[1] = 1024
+            object[2]=341
+            app.loc5BObjects+=[object]
+         if dic[item] == 7:
+            app.INtrash = object
+            object[1]=433
+            object[2]=540
+            app.loc1AObjects = [object]
+         if dic[item] == 8:
+            app.INwindow = object
+            object[1]=200
+            object[2]=400
+      else:
+         for i in range(len(dic[item])):
+            if i == 0:
+               object = app.piece1
+            elif i ==1:
+               object = app.piece2
+            elif i ==2:
+               object = app.piece3
+            elif i == 3:
+               object = app.piece4
+            elif i == 4:
+               object = app.piece5
+            if dic[item][i] == 0:
+               app.INsafe = object
+            if dic[item][i] == 1:
+               app.INboards = object
+               object[1]=900
+               object[2]=256
+            if dic[item][i] == 2:
+               app.INgoldbox = object
+            if dic[item][i] == 3:
+               app.INsilvbox = object
+            if dic[item][i] == 4:
+               app.INdog = object
+            if dic[item][i] == 5:
+               app.INsink = object
+               object[1] = 1024
+               object[2]=341
+            if dic[item][i] == 6:
+               app.INshelf = object
+               object[1] = 1024
+               object[2]=341
+               app.loc5BObjects+=[object]
+            if dic[item][i] == 7:
+               app.INtrash = object 
+               object[1]=433
+               object[2]=540
+               app.loc1AObjects = [object]
+            if dic[item][i] == 8:
+               app.INwindow = object
+               object[1]=200
+               object[2]=400
+def checkIfTrackerThere(app):
+   if app.tracker in app.player.itemsStored:
+      app.tracking = True
+
+def placingSanityThings(app):
+   #want 10 sanity increasing things randomly in any room 
+   
+   #obj1
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO1Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO1 = ['sanity bar lol.png',px,py,50,50]
+   #obj2
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO2Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO2 = ['sanity bar lol.png',px,py,50,50]
+   #obj3
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO3Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO3 = ['sanity bar lol.png',px,py,50,50]
+   #obj4
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO4Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO4 = ['sanity bar lol.png',px,py,50,50]
+   #obj5
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO5Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO5 = ['sanity bar lol.png',px,py,50,50]
+   #obj6
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO6Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO6 = ['sanity bar lol.png',px,py,50,50]
+   #obj7
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO7Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO7 = ['sanity bar lol.png',px,py,50,50]
+   #obj8
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO8Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO8 = ['sanity bar lol.png',px,py,50,50]
+   #obj9
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO9Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO9 = ['sanity bar lol.png',px,py,50,50]
+   #obj10
+   row = choice(range(5))
+   col = choice(range(3))
+   app.SO10Place = app.totalMap[row][col]
+   px = choice(range(200,900))
+   py= choice(range(200,900))
+   app.SO10 = ['sanity bar lol.png',px,py,50,50]
+
+#random functions
+def objectsInRoom(app):
+   print(app.see,app.loc2BObjects)
+   if app.see == app.loc6_livingRoom_D:
+      app.objectsInRoom = app.loc6DObjects
+   elif app.see == app.loc3_bedroom1_C:
+      app.objectsInRoom = app.loc3CObjects
+   elif app.see == app.loc1_secRoom_A:
+      app.objectsInRoom = app.loc1AObjects
+   elif app.see == app.loc4_bedroom2_A:
+      app.objectsInRoom = app.loc4AObjects
+   elif app.see == app.loc4_bedroom2_C:
+      app.objectsInRoom = app.loc4CObjects
+   elif app.see == app.loc4_bedroom2_D:
+      app.objectsInRoom = app.loc4DObjects
+   elif app.see == app.loc5_study_B:
+      app.objectsInRoom = app.loc5BObjects
+   elif app.see == app.loc3_bedroom1_D:
+      app.objectsInRoom = app.loc3DObjects
+   elif app.see == app.loc5_study_D:
+      app.objectsInRoom = app.loc5DObjects
+   elif app.see == app.loc2_kitchen_D:
+      app.objectsInRoom=app.loc2DObjects
+   elif app.see == app.loc2_kitchen_C:
+      app.objectsInRoom = app.loc2CObjects
+   elif app.see == app.loc2_kitchen_B:
+      app.objectsInRoom = app.loc2BObjects
+   else:
+      app.objectsInRoom = []
+def locationToSee(app,numLoc,keyPressed,currSide):
+   #initializing string to reference
+   roomOrder = 'ABCD'
+   roomInd = roomOrder.find(currSide)
+   if keyPressed == 'right':
+      roomInd +=1
+      roomInd = roomInd%4
+   elif keyPressed == 'left':
+      roomInd -=1
+      roomInd = roomInd%4
+   resString = 'loc'
+   resString += str(numLoc)
+   resString += '_'
+   if numLoc == 1:
+      resString += 'secRoom_'
+   elif numLoc == 2:
+      resString += 'kitchen_'
+   elif numLoc == 3:
+      resString += 'bedroom1_'
+   elif numLoc == 4:
+      resString += 'bedroom2_'
+   elif numLoc == 5:
+      resString += 'study_'
+   elif numLoc == 6:
+      resString += 'livingRoom_'
+   resString += str(roomOrder[roomInd])
+   #changing the room based on the string
+   #secRoom
+   if 'secRoom_A' in resString:
+      app.currSide = 'A'
+      return app.loc1_secRoom_A
+   elif 'secRoom_B' in resString:
+      app.currSide = 'B'
+      return app.loc1_secRoom_B
+   elif 'secRoom_C' in resString:
+      app.currSide = 'C'
+      return app.loc1_secRoom_C
+   elif 'secRoom_D' in resString:
+      app.currSide = 'D'
+      return app.loc1_secRoom_D
+   #kitchen
+   elif 'kitchen_A' in resString:
+      app.currSide = 'A'
+      return app.loc2_kitchen_A
+   elif 'kitchen_B' in resString:
+      app.currSide = 'B'
+      return app.loc2_kitchen_B
+   elif 'kitchen_C' in resString:
+      app.currSide = 'C'
+      return app.loc2_kitchen_C
+   elif 'kitchen_D' in resString:
+      app.currSide = 'D'
+      return app.loc2_kitchen_D
+   #bedroom1
+   elif  'bedroom1_A' in resString:
+      app.currSide = 'A'
+      return  app.loc3_bedroom1_A 
+   elif  'bedroom1_B' in resString:
+      app.currSide = 'B'
+      return  app.loc3_bedroom1_B 
+   elif  'bedroom1_C' in resString:
+      app.currSide = 'C'
+      return  app.loc3_bedroom1_C
+   elif  'bedroom1_D' in resString:
+      app.currSide = 'D'
+      return  app.loc3_bedroom1_D
+   #bedroom2
+   elif 'bedroom2_A' in resString:
+      app.currSide = 'A'
+      print(app.loc4_bedroom2_A)
+      return app.loc4_bedroom2_A
+   elif 'bedroom2_B' in resString:
+      app.currSide = 'B'
+      print(app.loc4_bedroom2_B)
+      return app.loc4_bedroom2_B
+   elif 'bedroom2_C' in resString:
+      app.currSide = 'C'
+      print(app.loc4_bedroom2_C)
+      return app.loc4_bedroom2_C
+   elif 'bedroom2_D' in resString:
+      app.currSide = 'D'
+      print(app.loc4_bedroom2_D)
+      return app.loc4_bedroom2_D
+   #study
+   elif 'study_A' in resString:
+      app.currSide = 'A'
+      return app.loc5_study_A
+   elif 'study_B' in resString:
+      app.currSide = 'B'
+      return app.loc5_study_B
+   elif 'study_C' in resString:
+      app.currSide = 'C'
+      return app.loc5_study_C
+   elif 'study_D' in resString:
+      app.currSide = 'D'
+      return app.loc5_study_D
+   #living room
+   elif 'livingRoom_A' in resString:
+      app.currSide = 'A'
+      return app.loc6_livingRoom_A
+   elif 'livingRoom_B' in resString:
+      app.currSide = 'B'
+      return app.loc6_livingRoom_B
+   elif 'livingRoom_C' in resString:
+      app.currSide = 'C'
+      return app.loc6_livingRoom_C
+   elif 'livingRoom_D' in resString:
+      app.currSide = 'D'
+      return app.loc6_livingRoom_D
+def onKeyPress(app,key):
+   if app.gameOver == True:
+      if key == 'r':
+         # if app.playerSanity != 0:
+         #    inventory = app.player.itemsStored + app.player.lensesStored + app.player.peicesStored
+         #    resString = str(app.see)+''+str(app.playerSanity)+';'+str(inventory)
+            # save(resString)
+         # else:
+            # save([app.see,100,app.inventory])
+         restartAll(app)
+
+   elif app.safeUSE == True:
+      if key == 'escape':
+         app.safeUSE = False
+   else:
+      if app.lensChoice == 'conv':
+         if key == 'left':
+            if app.CX>0:
+               app.CX -= 55
+               print(app.CX)
+         elif key == 'right':
+            # if app.CX:
+            app.CX += 55
+            print(app.CX)
+         elif key == 'up':
+            if app.CY >=0:
+               app.CY-=40
+         elif key == 'down':
+            app.CY+=40
+      else:
+         if key == 'left':
+            app.see = locationToSee(app,app.Plocation,'right',app.currSide)
+            objectsInRoom(app)
+         elif key == 'right':
+            app.see = locationToSee(app,app.Plocation,'left',app.currSide)
+            objectsInRoom(app)
+         if key == 'up':
+            (app.Prow,app.Pcol) = app.yuh.playerMove(app.currSide,app.map,app.Prow,app.Pcol)
+            app.Plocation = app.map[app.Prow][app.Pcol]
+            app.see = locationToSee(app,app.Plocation,'up',app.currSide)
+            if app.tvON == False:
+               app.Epath = enemyMoves(app.map,app.Erow,app.Ecol,app.Prow,app.Pcol,[])
+            
+            app.gameOver = checkGameOver(app.Erow,app.Ecol,app.Prow,app.Pcol)
+            print('isgameOver',app.gameOver)
+            objectsInRoom(app)
+def onKeyHold(app,key):
+   if app.lensChoice == 'conv':
+      if key == 'left':
+         # if app.CX>0:
+            app.CX -= 55
+            print(app.CX)
+      elif key == 'right':
+         # if app.CX:
+         app.CX += 55
+         print(app.CX)
+      elif key == 'up':
+         if app.CY >=0:
+            app.CY-=40
+      elif key == 'down':
+         app.CY+=40
+def clickedOnIt(app,object):
+   if object == app.convLens or object == app.concLens:
+      app.haveLens = True
+      app.player.lensesStored.append(object)
+   if object != app.convLens and object != app.concLens and object != app.piece1 and object != app.piece2 and object != app.piece3 and object != app.piece4 and object != app.piece5:
+            app.player.itemsStored.append(object)
+   if (object == app.piece1 or object == app.piece2 or object == app.piece3 or object == app.piece4 or object == app.piece5):
+      app.player.peicesStored.append(object)
+   #inventory-addable objects
+   if app.see == app.loc5_study_B:
+      app.loc5BObjects.remove(object)
+   elif app.see == app.loc4_bedroom2_A:
+      app.loc4AObjects.remove(object)
+   elif app.see == app.loc4_bedroom2_D:
+      app.loc4DObjects.remove(object)
+   elif app.see == app.loc3_bedroom1_D:
+      app.loc3DObjects.remove(object)
+   elif app.see == app.loc3_bedroom1_C:
+      app.loc3CObjects.remove(object)
+   elif app.see == app.loc5_study_D:
+      app.loc5DObjects.remove(object)
+   elif app.see == app.loc2_kitchen_D:
+      app.loc2DObjects.remove(object)
+   elif app.see == app.loc4_bedroom2_C:
+      app.loc4CObjects.remove(object)
+   elif app.see == app.loc1_secRoom_A:
+      app.loc1AObjects.remove(object)
+   elif app.see == app.loc2_kitchen_C:
+      app.loc2CObjects.remove(object)
+   elif app.see == app.loc2_kitchen_B:
+      app.loc2BObjects.remove(object)
+
+def correctSafeNumGenerator(app):
+   numbers = ['0','1','2','3','4','5','6','7','8','9']
+   firstnum = choice(numbers)
+   secnum = choice(numbers)
+   thirdnum = choice(numbers)
+   fourthnum = choice(numbers)
+   app.correctSafeNum = [firstnum,secnum,thirdnum,fourthnum]
+
+#interactions
+def displayDogInteract(app):
+   app.loc4CObjects += [app.INdog]
+   # app.objectsInRoom+=[app.INdog]
+   app.player.itemsStored.remove(app.Dtreat)
+   # app.player.peicesStored.append(app.piece1)
+   app.objectChoice = None
+def displaySinkInteract(app):
+   app.loc2DObjects += [app.INsink]
+   app.player.itemsStored.remove(app.wrench)
+   app.objectChoice = None
+def displaySilverBoxInteraction(app):
+   app.loc6DObjects += [app.INsilvbox]
+   app.player.itemsStored.remove(app.silverKey)
+   app.objectChoice = None
+def displayGoldBoxInteraction(app):
+   app.loc4AObjects += [app.INgoldbox]
+   app.player.itemsStored.remove(app.goldKey)
+   app.objectChoice = None
+   app.goldboxOpen = True
+def displayHammerInteraction(app):
+   app.yesHammer = True
+   print(app.objectsInRoom)
+   app.loc2CObjects += [app.INdog]
+   print(app.objectsInRoom)
+   app.player.itemsStored.remove(app.hammer)
+   app.objectChoice = None
+def displayWindowInteraction(app):
+   app.yesrock = True
+   app.loc4DObjects += [app.INwindow]
+   app.player.itemsStored.remove(app.rock)
+   app.objectChoice = None
+def lensInteractions(app):
+   if app.lensChoice == 'conc' and app.see == app.loc6_livingRoom_A:
+      app.showSafeNums = True
+   else:
+      app.showSafeNums = False
+def tvInteractionThings(app,currTime):
+   app.timeLeftTV = 100
+   if app.tvON == True:
+      if app.tvChannel == 2:
+         enemysMap = [[0,0,0],[0,0,0],[0,0,0]]
+         for i in range(3):
+            for j in range(3):
+               if app.map[i][j] == 6:
+                  enemysMap[i][j]=0
+               else:
+                  enemysMap[i][j] = app.map[i][j]
+         app.Epath = enemyMoves(enemysMap,app.Erow,app.Ecol,app.Prow,app.Pcol,[])
+
+   # if app.see == app.loc6_livingRoom_D
+def tvInteraction(app):
+   if app.tvON == False:
+      app.tvON = True
+      app.tvChannel = 1
+      for i in range(3):
+         for j in range(3):
+            if app.map[i][j] == 6:
+               theRow = i
+               theCol = j
+      app.Epath = enemyMoves(app.map,app.Erow,app.Ecol,theRow,theCol,[])
+      print('ITS THIS ONE', app.Epath)
+   elif app.tvChannel == 1:
+      app.tvChannel = 2
+      enemysMap = [[0,0,0],[0,0,0],[0,0,0]]
+      for i in range(3):
+         for j in range(3):
+            if app.map[i][j] == 6:
+               enemysMap[i][j]=0
+            else:
+               enemysMap[i][j] = app.map[i][j]
+      app.Epath = enemyMoves(enemysMap,app.Erow,app.Ecol,app.Prow,app.Pcol,[])
+   elif app.tvChannel == 2:
+      app.tvON = False 
+
+def gameOverScreen(app):
+   if app.gameOver == True:
+      app.map = []
+def warningFlashing(app):
+   app.flash = True
+   positions = [[0,1],[0,-1],[1,0],[-1,0]]
+   for position in positions:
+      if (app.Erow + position[0]) == app.Prow and (app.Ecol + position[1])==app.Pcol:
+         app.flashing = True
+         # drawWarningFigure(app)
+         return
+   else:
+      app.flash = False
+      app.flashing = False
+
+def drawWarningFlash(app,currTime):
+   if app.Epath != []:
+      currTime = currTime%51
+      if 0<=currTime<=5:
+            app.showMovement = True
+      else:
+         app.showMovement = False
+      #hehe a lil separator 
+      if app.flashing == True:
+         if 0<=currTime<=15:
+            app.showMovement = True
+            app.showWarning = False
+            if currTime%7 == 0:
+               app.flash=not app.flash
+         elif 15<=currTime<=25:
+            app.showMovement = False
+            if currTime%5 == 0:
+               app.flash = not app.flash
+         elif 25<=currTime <=35:
+            if currTime%3 == 0:
+               app.flash = not app.flash
+            app.showWarning = True
+         else:
+            app.showWarning = True
+            if currTime%2 == 0:
+               app.flash = not app.flash
+
+
+#checking if mouse is pressing these things
+def mouseOnArrow(app,mx,my):
+   if not app.gameOver:
+      if 10<=mx<=70:
+         if 405<= my <= 445:
+            app.see = locationToSee(app,app.Plocation,'right',app.currSide)
+            app.gameOver = checkGameOver(app.Erow,app.Ecol,app.Prow,app.Pcol)
+            objectsInRoom(app)
+      elif 1101 <= mx <= 1159:
+         if 400<= my <= 445: 
+            app.see = locationToSee(app,app.Plocation,'left',app.currSide)
+            app.gameOver = checkGameOver(app.Erow,app.Ecol,app.Prow,app.Pcol)
+            objectsInRoom(app)
+def objectInteraction(app,mx,my):
+   #the formulas for obtaining tings/unlocking tings
+   #dog + dog treat
+   if app.see == app.loc4_bedroom2_C:
+      if 170<=mx<=430:
+         if 360<=my<=760:
+            print('omy omy god eisnisna', app.objectChoice, app.Dtreat)
+            if app.objectChoice[0] == app.Dtreat:
+               print('YESSSSS')
+               displayDogInteract(app)
+   # wrench + sink
+   if app.see == app.loc2_kitchen_D:
+      if 244<=mx<=305:
+         if 353<=my<=436:
+            if app.objectChoice[0] == app.wrench:
+               displaySinkInteract(app)
+   #silver key + silver box
+   if app.see == app.loc6_livingRoom_D: 
+      if 868<=mx<=1000:
+         if 313<=my<=700:
+            if app.objectChoice[0] == app.silverKey:
+               displaySilverBoxInteraction(app)
+   #gold key + gold box
+   if app.see == app.loc4_bedroom2_A:
+      if 209<=mx<=401:
+         if 575<=my<=719:
+            if app.objectChoice[0] == app.goldKey:
+               displayGoldBoxInteraction(app)
+   #hammer + boards
+   if app.see == app.loc2_kitchen_C:
+      if 771<=mx<=1114:
+         if 143<=my<=450:
+            if app.objectChoice[0]==app.hammer:
+               displayHammerInteraction(app)
+   #rock and window
+   if app.see == app.loc4_bedroom2_D:
+      if 156<=mx<=428:
+         if 62<=my<=525:
+            if app.objectChoice[0] == app.rock:
+               displayWindowInteraction(app)
+   # to place pieces
+   if app.see == app.loc1_secRoom_D:
+      if 740<=mx<=835:
+         if 425<=my<=575:
+            if app.objectChoice[0] == app.piece1:
+               app.piece1There = True
+            elif app.objectChoice[0] == app.piece2:
+               app.piece2There = True
+            elif app.objectChoice[0] == app.piece3:
+               app.piece3There = True
+            elif app.objectChoice[0] == app.piece4:
+               app.piece4There = True
+            elif app.objectChoice[0] == app.piece5:
+               app.piece5There = True
+      pass
+def randomInteraction(app,mx,my):
+   #to interact with TV
+   if app.see == app.loc6_livingRoom_D:
+      if 163<=mx<=490:
+         if 190<=my<=441:
+            tvInteraction(app)
+
+def mouseOnLenses(app,mx,my):
+   if 90<=my<=167:
+      if 7<=mx<=90:
+         app.lensChoice = 'none'
+   elif 170<=my<=250:
+      if 7<=mx<=90:
+         if app.concLens in app.player.lensesStored:
+            if app.convLens in app.player.lensesStored:
+               if app.player.lensesStored.index(app.convLens) > app.player.lensesStored.index(app.concLens):
+                  app.lensChoice = 'conc'
+               else:
+                  app.lensChoice = 'conv'
+            else:
+               app.lensChoice = 'conc'
+         elif app.convLens in app.player.lensesStored:
+            app.lensChoice = 'conv'
+   elif 250<=my<=330:
+      if 7<= mx<=90:
+         if app.player.lensesStored.index(app.convLens) > app.player.lensesStored.index(app.concLens):
+            app.lensChoice = 'conv'
+         else:
+            app.lensChoice = 'conc'
+def clickInv(app,mx,my):
+   if 7<=mx<=80:
+      if 7<=my<=80:
+         app.showInv = not app.showInv
+def mouseOnInvObj(app,mx,my):
+   if app.showInv == True:
+      #checking if clicked on each square, if the square has an object,
+      #then making it the object choice if selected, and deselecting if it is already
+      
+      #normal items
+      #square 1
+      if 80<=mx<=167:
+         if 7<=my<=90:
+            if len(app.player.itemsStored) >=1:
+               app.objectChoice = [app.player.itemsStored[0],0]
+      #square 2
+      if 167<=mx<=250:
+         if 7<=my<=90:
+            if len(app.player.itemsStored) >=2:
+               app.objectChoice = [app.player.itemsStored[1],1]
+      #square 3
+      if 250<=mx<=330:
+         if 7<=my<=90:
+            if len(app.player.itemsStored) >=3:
+               app.objectChoice = [app.player.itemsStored[2],2]
+      #square 4
+      if 330<=mx<=407:
+         if 7<=my<=90:
+            if len(app.player.itemsStored) >=4:
+               app.objectChoice = [app.player.itemsStored[3],3]
+      #square 5
+      if 407<=mx<=490:
+         if 7<=my<=90:
+            if len(app.player.itemsStored) >=5:
+               app.objectChoice = [app.player.itemsStored[4],4]
+      #square 6
+      if 490<=mx<=567:
+         if 7<=my<=90:
+            if len(app.player.itemsStored) >=6:
+               app.objectChoice = [app.player.itemsStored[5],5]
+      #square 7
+      if 567<=mx<=650:
+         if 7<=my<=90:
+            if len(app.player.itemsStored) >=7:
+               app.objectChoice = [app.player.itemsStored[6],6]
+      #square 8
+      if 650<=mx<=730:
+         if 7<=my<=90:
+            if len(app.player.itemsStored) >=8:
+               app.objectChoice = [app.player.itemsStored[7],7]
+
+      #peices items (purple squares)
+      #square1
+      if 750<=mx<=830:
+         if 7<=my<=90:
+            if len(app.player.peicesStored) >=1:
+               app.objectChoice = [app.player.peicesStored[0],8]
+      #square2
+      if 830<=mx<=910:
+         if 7<=my<=90:
+            if len(app.player.peicesStored) >=2:
+               app.objectChoice = [app.player.peicessStored[1],9]
+      #square3
+      if 910<=mx<=990:
+         if 7<=my<=90:
+            if len(app.player.peicesStored) >=3:
+               app.objectChoice = [app.player.peicessStored[2],10]
+      #square4
+      if 990<=mx<=1069:
+         if 7<=my<=90:
+            if len(app.player.peicesStored) >=4:
+               app.objectChoice = [app.player.peicessStored[3],11]
+      #square5
+      if 1062<=mx<=1140:
+         if 90<=my<=170:
+            if len(app.player.peicesStored) >=5:
+               app.objectChoice = [app.player.peicessStored[4],12]
+   else:
+      pass
+def clickInv(app,mx,my):
+   if 7<=mx<=80:
+      if 7<=my<=80:
+         app.showInv = not app.showInv
+         if app.showInv == False:
+            app.objectChoice = None
+def mouseOnDoor(app,mx,my):
+   if 500<=mx<=700:
+      if 220<=my<=600:
+         (app.Prow,app.Pcol) = app.yuh.playerMove(app.currSide,app.map,app.Prow,app.Pcol)
+         app.Plocation = app.map[app.Prow][app.Pcol]
+         app.see = locationToSee(app,app.Plocation,'up',app.currSide)
+         if app.tvON == False:
+               app.Epath = enemyMoves(app.map,app.Erow,app.Ecol,app.Prow,app.Pcol,[])
+         app.gameOver = checkGameOver(app.Erow,app.Ecol,app.Prow,app.Pcol)
+         objectsInRoom(app)
+def mouseOnObject(app,mx,my):
+   for object in app.objectsInRoom:
+      (image,x,y,w,h) = object
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            clickedOnIt(app,object)
+def mouseOnSB(app,mx,my):
+   if app.see == app.SO1Place:
+      (image,x,y,w,h) = app.SO1
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.SO1Place = None
+            print('yyyyyyyyyy')
+            app.playerSanity+=60 
+            if app.playerSanity >100:
+               app.playerSanity = 100
+
+   if app.see == app.SO2Place:
+      (image,x,y,w,h) = app.SO2
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.SO2Place = None
+            print('yyyyyyyyyy')
+            app.playerSanity+=60 
+            if app.playerSanity >100:
+               app.playerSanity = 100
+   if app.see == app.SO3Place:
+         (image,x,y,w,h) = app.SO3
+         if (x)<=mx<=(x+w):
+            if (y)<=my<=(y+h):
+               app.SO3Place = None
+               print('yyyyyyyyyy')
+               app.playerSanity+=60
+               if app.playerSanity >100:
+                  app.playerSanity = 100
+   if app.see == app.SO4Place:
+      (image,x,y,w,h) = app.SO4
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.SO4Place = None
+            print('yyyyyyyyyy')
+            app.playerSanity+=60 
+            if app.playerSanity >100:
+               app.playerSanity = 100
+   if app.see == app.SO5Place:
+      (image,x,y,w,h) = app.SO5
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.SO5Place = None
+            print('yyyyyyyyyy')
+            app.playerSanity+=60 
+            if app.playerSanity >100:
+               app.playerSanity = 100
+   if app.see == app.SO6Place:
+      (image,x,y,w,h) = app.SO6
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.SO6Place = None
+            print('yyyyyyyyyy')
+            app.playerSanity+=60
+            if app.playerSanity >100:
+               app.playerSanity = 100
+   if app.see == app.SO7Place:
+      (image,x,y,w,h) = app.SO7
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.SO7Place = None
+            print('yyyyyyyyyy')
+            app.playerSanity+=60 
+            if app.playerSanity >100:
+               app.playerSanity = 100
+   if app.see == app.SO8Place:
+      (image,x,y,w,h) = app.SO8
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.SO8Place = None
+            print('yyyyyyyyyy')
+            app.playerSanity+=60 
+            if app.playerSanity >100:
+               app.playerSanity = 100
+   if app.see == app.SO9Place:
+      (image,x,y,w,h) = app.SO9
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.SO9Place = None
+            app.playerSanity+=60 
+            if app.playerSanity >100:
+               app.playerSanity = 100
+      
+   if app.see == app.SO10Place:
+      (image,x,y,w,h) = app.SO10
+      if (x)<=mx<=(x+w):
+         if (y)<=my<=(y+h):
+            app.playerSanity+=60 
+            app.SO10Place = None
+            if app.playerSanity >100:
+               app.playerSanity = 100
+
+#initial game part
+def pressOnMyButtons(app,mx,my):
+   #button 1
+   if 204<=mx<=245:
+      if 503<=my<=546:
+         print('YES')
+         app.showBackStory = True
+         app.initialGameStart = False
+         app.page1 = True
+   #button 3
+   if 204<=mx<=245:
+      if 622<=my<=669:
+         if file_exists:
+            load(app)
+   #button 4
+   if 204<=mx<=245:
+      if 684<=my<=731:
+         app.initialGameStart = False
+         app.timeCount = 1
+   pass
+def hoverOnMyButtons(app,mx,my):
+   #button 1
+   if 204<=mx<=245:
+      if 503<=my<=546:
+         app.showStoryButton = True
+         amHovering(app,app.showStoryButton)
+   if 204<=mx<=245:
+      if 564<=my<=607:
+         app.showHelpButton = True
+         amHovering(app,app.showHelpButton)
+   #button 3
+   if 204<=mx<=245:
+      if 622<=my<=669:
+         app.showLoadButton = True
+         amHovering(app,app.showLoadButton)
+   #button 4
+   if 204<=mx<=245:
+      if 684<=my<=731:
+         app.showStartButton = True
+         amHovering(app,app.showStartButton)
+   else:
+      app.showHelpButton = False
+      app.showLoadButton = False
+      app.showStoryButton = False
+      app.showStartButton = False
+def amHovering(app,currButton):
+   if currButton == app.showStartButton:
+      app.showHelpButton = False
+      app.showLoadButton = False
+      app.showStoryButton = False
+   elif currButton == app.showHelpButton:
+      app.showLoadButton = False
+      app.showStoryButton = False
+      app.showStartButton = False
+   elif currButton == app.showStoryButton:
+      app.showLoadButton = False
+      app.showHelpButton = False
+      app.showStartButton = False
+   elif currButton == app.showLoadButton:
+      app.showHelpButton = False
+      app.showStartButton = False
+      app.showStoryButton = False
+
+#backstory part
+def backStoryPart(app):
+   if app.page1 == True:
+      app.page1 = False
+      app.page2 = True
+      return 
+   elif app.page2 == True:
+      app.page3 = True
+      app.page2 = False
+      return
+   elif app.page3 == True:
+      app.page4 = True
+      app.page3 = False
+      return
+   elif app.page4 == True:
+      app.page5 = True
+      app.page4 = False
+      return
+   elif app.page5 == True:
+      app.page6 = True
+      app.page5 = False
+      return
+   elif app.page6 == True:
+      app.page6 = False
+      app.showBackStory = False
+      app.initialGameStart = True
+def useFarnam(app,mx,my):
+   if 821<=mx<=1074:
+      if 330<=my<=516:
+         backStoryPart(app)
+
+
+def enteringNumbers(app,mx,my):
+   nums = ['0','1','2','3','4','5','6','7','8','9']
+   if 40<=mx<=287:
+      if 367<=my<=720:
+         newInd = nums.index(app.firstnum) + 1
+         newInd = newInd%10
+         app.firstnum = nums[newInd]
+   if 325<=mx<=574:
+      if 366<=my<=719:
+         newInd = nums.index(app.secnum) + 1
+         newInd = newInd%10
+         app.secnum = nums[newInd]
+   if 615<=mx<=864:
+      if 365<=my<=718:
+         newInd = nums.index(app.thirdnum) + 1
+         newInd = newInd%10
+         app.thirdnum = nums[newInd]
+   if 906<=mx<=1156:
+      if 365<=my<=719:
+         newInd = nums.index(app.fourthnum) + 1
+         newInd = newInd%10
+         app.fourthnum = nums[newInd]
+   app.totalSafeNum = [app.firstnum,app.secnum,app.thirdnum,app.fourthnum]
+   if app.totalSafeNum == app.correctSafeNum:
+      app.safeSolved = True
+def useSafe(app,mx,my):
+   if app.see == app.loc3_bedroom1_B:
+      if 142<=mx<=326:
+         if 479<=my<=642:
+            app.safeUSE = True
+def useSafeKey(app,mx,my):
+   if 501<=mx<=728:
+      if 63<=my<=268:
+         if app.objectChoice[0] == app.bronzeKey:
+            app.safeOpen = True
+            app.objectsInRoom += [app.INsafe]
+# source mousePress stuff = hack112 project
+def onMousePress(app,mouseX,mouseY):
+   print(mouseX,mouseY)
+   if app.initialGameStart == True:
+      pressOnMyButtons(app,mouseX,mouseY)
+   elif app.safeUSE == True:
+      if not app.safeSolved:
+         enteringNumbers(app,mouseX,mouseY)
+      else:
+         useSafeKey(app,mouseX,mouseY)
+   elif app.showBackStory == True:
+      useFarnam(app,mouseX,mouseY)
+      pass
+   elif not app.gameOver and not app.initialGameStart and not app.safeUSE and not app.showBackStory:
+      # tvInteractionThings(app,app.timeCount)
+      useSafe(app,mouseX,mouseY)
+      warningFlashing(app)
+      mouseOnArrow(app,mouseX,mouseY)
+      mouseOnObject(app,mouseX,mouseY)
+      clickInv(app,mouseX,mouseY)
+      mouseOnLenses(app,mouseX,mouseY)
+      lensInteractions(app)
+      randomInteraction(app,mouseX,mouseY)
+      mouseOnSB(app,mouseX,mouseY)
+      tvInteractionThings(app,app.timeCount)
+      # randomObjectInteractions(app,mouseX,mouseY)
+      if app.objectChoice !=None:
+         objectInteraction(app,mouseX,mouseY)
+      # randomObjectInteraction(app,mouseX,mouseY)
+      if app.showInv:
+         mouseOnInvObj(app,mouseX,mouseY)
+      if doorThere(app,app.map,app.Prow,app.Pcol,app.currSide):
+         mouseOnDoor(app,mouseX,mouseY)
+
+def onMouseMove(app,mouseX,mouseY):
+   if app.initialGameStart == True:
+      hoverOnMyButtons(app,mouseX,mouseY)
+#source door image = iheartcraftythings.com
+def doorThere(app,map,Prow,Pcol,currSide):
+   if currSide == 'A':
+      newRow = Prow-1
+      if 0<= newRow < 3:
+         if map[newRow][Pcol] != 0:
+            return True
+   elif currSide == 'B':
+      newCol = Pcol-1
+      if 0 <= newCol<3:
+         if map[Prow][newCol] != 0:
+            return True
+   elif currSide == 'C':
+      newRow = Prow +1  
+      if 0<=newRow < 3:
+         if map[newRow][Pcol] != 0:
+               return True
+   elif currSide == 'D':
+      newCol = Pcol +1
+      if 0<=newCol < 3:
+         if map[Prow][newCol] != 0:
+            return True
+   return False
+
+def onStep(app):
+   # if app.safeUSE == True:
+   #    app.stepsPerSecond = 5
+   app.timeCount +=1
+   warningFlashing(app)
+   drawWarningFlash(app,app.timeCount)
+   if app.playerSanity == 0:
+      app.gameOver = True
+   # useConvLens(app)
+   if app.showInv == False:
+      app.objectChoice = None
+   if not app.gameOver and not app.initialGameStart and not app.showBackStory:
+      tvInteractionThings(app,app.timeCount)
+      if app.tracking == False:
+         checkIfTrackerThere(app)
+      if app.timeCount%3 ==0:
+         app.playerSanity -=1
+      if app.timeCount%50 ==0:
+         print(app.Epath)
+         if app.Epath != []:
+            app.Erow = app.Epath[0][0]
+            app.Ecol = app.Epath[0][1]
+            app.Epath.pop(0)
+            app.gameOver = checkGameOver(app.Erow,app.Ecol,app.Prow,app.Pcol)
+   
+def redrawAll(app):
+   if app.gameOver == True:
+      drawRect(0,0,1200,1000,fill='black')
+      drawLabel('game Over :(', 500,300,fill='white',size=70)
+      drawLabel('he caught u! oh nooo', 500,500,fill='white',size=70)
+      drawLabel("press 'r' to restart", 500,700,fill='white',size=70)
+   elif app.safeUSE == True:
+      if not app.safeOpen:
+         #image sources: 
+         #lock:https://www.dreamstime.com/stock-photos-key-hole-image684803
+         drawImage('lock screen hehe get it.png',0,0,width=1200,height=900)
+         drawLabel(app.firstnum,157,540,size=460)
+         drawLabel(app.secnum,456,540,size=460)
+         drawLabel(app.thirdnum,756,540,size=460)
+         drawLabel(app.fourthnum,1056,540,size=460)
+         drawLabel('(press escape to exit)',580,830,size=22)
+      else:
+         drawImage('inside safeeee.png',0,0,width=1200,height=900)
+         for object in app.objectsInRoom:
+            (image,x,y,w,h) = object
+            drawImage(image,x,y,width=w,height=h)
+      
+   elif app.initialGameStart == True and not app.safeUSE:
+      drawImage('scary ass house.png',0,0,width=1200,height=900)
+      drawLabel('AHHHH escape!',500,100,size=70,fill = 'white')
+      for i in range(4):
+         drawImage('gren butt.png',200,500+i*60,width=50,height=50)
+      drawLabel('backstory :0000',450, 510, size = 45, fill = 'white')
+      drawLabel('how to play :0', 450, 570, size = 45, fill = 'white')
+      drawLabel('load game :-)', 450, 630, size = 45, fill = 'white')
+      drawLabel('start new game ;)', 480, 690, size = 45, fill = 'white')
+   elif app.showBackStory == True:
+      drawImage('360_F_233093916_r3PRjzJl1chTpb0Iz5EvM5OvOh6Smw1T.jpg',0,0,width=1200,height=1000)
+      #source = https://stock.adobe.com/search?k=haunted+house&search_page=4
+      drawImage('farnam-jahanian-400x250-min.jpg',821,334,width=250,height=180)
+      #source = https://www.cmu.edu/news/stories/archives/2015/february/jahanian-named-provost.html
+      drawLabel('push the farnam to continue ;)', 922,575,fill='plum',size=20)
+      #pages of the super dramatic backstory... 
+      if app.page1 == True:
+         drawLabel('once upon a time.......',400,300,fill='white',bold=True,size=20)
+         drawLabel('after a long a** day of work at CMU',400,350,fill='white',bold=True,size=20)
+         drawLabel('you are returning home. :)',400,400,fill='white',bold=True,size=20)
+         drawLabel("'what a lovely day to go home",400,450,fill='white',bold=True,size=20)
+         drawLabel("and admire my Mike Taylor portrait uwu', you thought", 400,500,bold=True,fill='white',size=20)
+         # source = https://scsdean.cs.cmu.edu/new-faculty/2020.html
+         drawImage('michaeltaylor.jpg',400,650,width=80,height=80)
+         drawImage('Vintage gilded gold fancy frame free printable (1).png',390,640,width=100,height=100)
+      if app.page2 == True:
+         drawLabel('when you get insideeeee......',400,400,fill='white',bold=True,size=20)
+         drawLabel('you see a familiar figure :00',400,450,fill='white',bold=True,size=20)
+         drawLabel('in crack of the cracked open door!',400,500,fill='white',bold=True,size=20)
+      if app.page3 == True:
+         drawLabel('is it.........',400,300,fill='white',bold=True,size=20)
+         drawLabel('is that.........',400,350,fill='white',bold=True,size=20)
+         drawLabel('Farnam!?!?',400,400,fill='white',bold=True,size=20)
+         drawLabel('and you see another person as well',400,500,fill='white',bold=True,size=20)
+         drawLabel('throwing around all of the stuff in your house',400,550,fill='white',bold=True,size=20)
+         # source = https://www.weforum.org/agenda/authors/farnam-jahanian
+         drawImage('download-1.jpg',400,650,width=100,height=80)
+      if app.page4 == True:
+         drawLabel("its Kosbie!!!",400,400,fill='white',bold=True,size=20)
+         drawLabel('OMG, you need to get out of here.',400,450,fill='white',bold=True,size=20)
+         # source = https://www.kosbie.net/cmu/
+         drawImage('dkosbie.png',400,650,width=100,height=80)
+      if app.page5 == True:
+         drawLabel('but kosbie disabled your magical door',400,400,fill='white',bold=True,size=20)
+         drawLabel('by taking the picture on the front apart',400,450,fill='white',bold=True,size=20)
+         drawLabel('and throwing it around!!!',400,500,fill='white',bold=True,size=20)
+         drawLabel('the audacity.',400,600,fill='white',bold=True,size=20)
+      if app.page6 == True:
+         drawLabel("let's find our stuff",400,400,fill='white',bold=True,size=20)
+         drawLabel('and get out of here!',400,450,fill='white',bold=True,size=20)
+         pass
+   else:
+      #drawing background
+      if app.lensChoice == 'none':
+         drawImage(app.see,0,0,width=1200,height=1000)
+      elif app.lensChoice == 'conv':
+         print('YUUUUUUUU')
+         print('THESE R THEM', -app.CX,-app.CY)
+         #makes the room zoomed in bc that's the function of a convex lens
+         #allows u to pan around room
+         drawImage(app.see,-app.CX,-app.CY,width=2400,height=2000)
+      elif app.lensChoice == 'conc':
+         #making the room look smaller bc that's the function of a concave lens
+         drawImage(app.see,200,0,width=900,height=900)
+      # drawImage('75427.png',300,550,width=50,height=50) #TEST
+
+      #drawing arrows
+      drawImage('aluminum-arrow-sign-k-1777_bk.png',1100,400,width=60,height=50)
+      drawImage('arrowflipppeed.png',10,400,width=60,height=50)
+
+      #drawing door
+      if doorThere(app,app.map,app.Prow,app.Pcol,app.currSide):
+         drawImage('door bae .png', 500,220,width=200,height=400)
+
+      #hammer broken down the wall lol
+      if app.yesHammer == True:
+         if app.see == app.loc2_kitchen_C:
+            drawImage('hole-1991881_1280.png',889,256,width=100,height=100)
+      #if rock broke window
+      if app.yesrock == True:
+         if app.see== app.loc4_bedroom2_D:
+           drawImage('hole-1991881_1280.png',200,400,width=100,height=100)
+      #if opened the gold box
+      if app.goldboxOpen == True:
+         if app.see == app.loc4_bedroom2_A:
+            drawImage('how-to-draw-a-treasure-chest-step-4.jpg',200,400,width=100,height=100)
+      
+      #drawing items in room
+      for object in app.objectsInRoom:
+         (image,x,y,w,h) = object
+         drawImage(image,x,y,width=w,height=h)
+
+      #drawing numbers on wall if using convex lens on writing wall
+      if app.showSafeNums == True:
+         for i in range(4):
+            currNum = app.correctSafeNum[i]
+            if i == 0:
+               drawLabel(currNum,431,216,size=200,fill = 'white')
+               drawLabel('first number', 431,316,size=50,fill='white')
+            elif i == 1:
+               drawLabel(currNum,883,189,size=200,fill='white')
+               drawLabel('second number', 883,200,size=50,fill='white')
+            elif i == 2:
+               drawLabel(currNum,972,395,size=200,fill='white')
+               drawLabel('third number', 972,430,size=50,fill='white')
+            elif i == 3:
+               drawLabel(currNum,334,512,size=200,fill='white')
+               drawLabel('fourth number', 334,540,size=50,fill='white')
+      #drawing covers for the door room (with the cake peices)
+      if app.see == app.loc1_secRoom_D :
+         if app.piece1There == False:
+            drawRect(740,425,50,70,fill='white')
+         if app.piece2There == False:
+            drawRect(785,425,50,70,fill='white')
+         if app.piece3There == False:
+            drawRect(835,425,50,70,fill='white')
+         if app.piece4There == False:
+            drawRect(740,490,50,85,fill='white')
+         if app.piece5There == False:
+            drawRect(785,490,50,85,fill='white')
+
+      #drawing warning
+      if app.flashing:
+         if app.flash:
+            drawImage('Warning.png',1140,550,width=50,height=50)
+      if app.showWarning and app.tracking and app.flashing:
+         print(app.currSide)
+         if app.Erow - app.Epath[0][0] == -1:
+            drawLabel('farnam is about to travel up', 1100,650, fill = 'red')
+         elif app.Erow - app.Epath[0][0] == 1:
+            drawLabel('farnam is about to travel down', 1100,650, fill = 'red')
+         elif app.Ecol - app.Epath[0][1] == -1:
+            drawLabel('farnam is about to travel left', 1100,650, fill = 'red')
+         elif app.Ecol - app.Epath[0][1] == 1:
+            drawLabel('farnam is about to travel right', 1100,650,fill = 'red')
+      if app.showMovement:
+         drawLabel('farnam just moved', 1080,104,fill = 'indigo',size=25,bold=True)
+
+      #drawing sanity inc things
+      if app.see == app.SO1Place:
+         (image,x,y,w,h) = app.SO1
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO2Place:
+         (image,x,y,w,h) = app.SO2
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO3Place:
+         (image,x,y,w,h) = app.SO3
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO4Place:
+         (image,x,y,w,h) = app.SO4
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO5Place:
+         (image,x,y,w,h) = app.SO5
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO6Place:
+         (image,x,y,w,h) = app.SO6
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO7Place:
+         (image,x,y,w,h) = app.SO7
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO8Place:
+         (image,x,y,w,h) = app.SO8
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO9Place:
+         (image,x,y,w,h) = app.SO9
+         drawImage(image,x,y,width=w,height=h)
+      if app.see == app.SO10Place:
+         (image,x,y,w,h) = app.SO10
+         drawImage(image,x,y,width=w,height=h)
+
+      #drawing tv things!
+      if app.see == app.loc6_livingRoom_D:
+         if app.tvON:
+            if app.tvChannel == 1:
+               drawImage('cmu-tepper-hall-900x600.jpg',190,214,width=(465-190),height=(364-214))
+               drawLabel('attracts the farnam :--)',200,500)
+               drawLabel(f'time remaining = {app.timeLeftTV} ',200,550)
+            if app.tvChannel == 2:
+               drawImage('Screen Shot 2023-04-25 at 2.48.53 PM.png',190,214,width=(465-190),height=(364-214))
+               drawLabel('mild repel farnam --he cant come in here-- :p',200,500)
+               drawLabel(f'time remaining = {app.timeLeftTV} ',200,550)
+            if app.tvChannel == 3:
+               drawImage('Screen Shot 2023-04-25 at 2.48.53 PM.png',190,214,width=(465-190),height=(364-214))
+               drawLabel('lots repel farnam --he cant come in here and surrounding rooms-- :D',200,500)
+               drawLabel(f'time remaining = {app.timeLeftTV} ',200,550)
+         if app.tvON == False:
+            drawRect(190,214,(465-190),(364-214),fill='black')
+      
+      #player stats things
+      #drawing inventory
+      drawRect(7,7,80,80,fill='lightCoral',border='gray',borderWidth=4)
+      if app.showInv == False:
+         drawLabel('push here',48,30,size=15)
+         drawLabel('for ur',48,50,size=15)
+         drawLabel('inventory',48,70,size=15,bold=True)
+      else:
+         drawLabel('push here',48,30,size=15)
+         drawLabel('to close da',48,50,size=15)
+         drawLabel('inventory',48,70,size=15,bold=True)
+         #all item boxes:
+         for i in range(8):
+            drawRect(87+i*80,7,80,80,fill='papayaWhip',border='gray',borderWidth=4)
+         
+         #boxes for key peices:
+         for i in range(5):
+            if i<4:
+               drawRect(750+i*80,7,80,80,fill='purple',border='gray',borderWidth=4)
+            else:
+               drawRect(900+(i-2)*80,90,80,80,fill='purple',border='gray',borderWidth=4)
+         count = 0
+      
+         #drawing items in inventory
+         for item in app.player.itemsStored:
+            if item != app.convLens and item != app.concLens:
+               (image,x,y,w,h) = item
+               drawImage(image,87+count*80,7,width=80,height=80)
+               count+=1
+         count=0
+
+         #drawing peices in inventory
+         if app.player.peicesStored != []:
+            for peice in app.player.peicesStored:
+               if count != 4:
+                  (image,x,y,w,h) = peice
+                  drawImage(image,760+count*80,17,width=60,height=60)
+               count+=1
+            count = 0
+
+         #drawing item selection
+         if app.objectChoice != None:
+            for i in range(8):
+               if app.objectChoice[1] == i:
+                  drawRect(87+80*i,7,80,80,fill=None,border='lawnGreen',borderWidth=6)
+                  drawLabel('selected',137+80*i,96,size=12,fill='oliveDrab')
+               else:
+                  pass
+            for i in range(8,13):
+               if app.objectChoice[1] == i:
+                  drawRect(760+80*i,7,80,80,fill=None,border='lawnGreen',borderWidth=6)
+                  drawLabel('selected',790+80*i,96,size=12,fill='oliveDrab')
+               else:
+                  pass
+      #drawing Lens inventory
+      if app.convLens in app.player.lensesStored or app.concLens in app.player.lensesStored:
+         count2 = 0
+         for item in app.player.lensesStored:
+            if item == app.concLens or item == app.convLens:
+               drawRect(7,170+count2*80,80,80,fill='steelBlue',border='gray',borderWidth=4)
+               (image,x,y,w,h) = item
+               drawImage(image,7+27,170+17+count2*80,width=w,height=h)
+            count2+=1
+         count2=0
+         drawRect(7,90,80,80,fill='darkSeaGreen',border='gray',borderWidth=4)
+         drawLabel('no',47,120,size=18,bold=True)
+         drawLabel('lens',47,140,size=18,bold=True)
+         if app.lensChoice == 'none':
+            drawRect(7,90,80,80,fill=None,border='gold',borderWidth=6)
+            drawLabel('selected',45,160,size=12,fill='black')
+         elif app.lensChoice == 'conc':
+            if app.convLens in app.player.lensesStored:
+               if app.player.lensesStored.index(app.convLens) > app.player.lensesStored.index(app.concLens):
+                  drawRect(7,170,80,80,fill=None,border='gold',borderWidth=6)
+                  drawLabel('selected',45,240,size=12,fill='black')
+               else:
+                  drawRect(7,250,80,80,fill=None,border='gold',borderWidth=6)
+                  drawLabel('selected',45,320,size=12,fill='black')
+            else:
+               drawRect(7,170,80,80,fill=None,border='gold',borderWidth=6)
+               drawLabel('selected',45,240,size=12,fill='black')
+         elif app.lensChoice == 'conv':
+            if app.concLens in app.player.lensesStored:
+               if app.player.lensesStored.index(app.convLens) < app.player.lensesStored.index(app.concLens):
+                  drawRect(7,170,80,80,fill=None,border='gold',borderWidth=6)
+                  drawLabel('selected',45,240,size=12,fill='black')
+               else:
+                  drawRect(7,250,80,80,fill=None,border='gold',borderWidth=6)
+                  drawLabel('selected',45,320,size=12,fill='black')
+            else:
+               drawRect(7,170,80,80,fill=None,border='gold',borderWidth=6)
+               drawLabel('selected',45,240,size=12,fill='black')
+      
+      #drawing map on top of screen
+      for i in range(3):
+         for j in range(3):
+            if app.map[i][j] != 0:
+               drawRect(1100+(30*j),20+(30*i),30,30,fill = 'papayaWhip',border='gray')
+      for i in range(3):
+         for j in range(3):
+            if i == app.Prow and j == app.Pcol:
+               drawRect(1100+(30*j)+8,20+30*i+8,15,15,fill = 'lime',border='darkKhaki')
+               if app.currSide == 'A':
+                  drawRect(1100+(30*j)+8,20+30*i+3,15,5,fill = 'brown')   
+               elif app.currSide == 'B':
+                  drawRect(1100+(30*j)+3,20+30*i+8,5,15,fill = 'brown')
+               elif app.currSide == 'C':
+                  drawRect(1100+(30*j)+8,20+30*i+23,15,5,fill = 'brown')  
+               elif app.currSide == 'D':
+                  drawRect(1100+(30*j)+23,20+30*i+8,5,15,fill = 'brown')
+            #draws enemy's position if the player has the tracker 
+            elif i == app.Erow and j == app.Ecol and app.tracking == True:
+               drawRect(1100+(30*j)+8,20+30*i+8,15,15,fill = 'red',border='mediumBlue')
+      #drawing sanity meter
+      drawLabel('sanity meter :0',1140,140,size=15)
+      for i in range(100):
+         drawRect(1160,150+i*2,7,7,fill='peachPuff')
+      for i in range(app.playerSanity):
+         drawRect(1160,350-i*2,7,7,fill='mediumSeaGreen')
+   
+def main():
+    runApp(width=1200,height=1000)
+
+main()
+
+
+#image sources:
+
+#misc
+#arrow = https://www.compliancesigns.com/pd/reflective-arrow-sign-cs480113
+#warning =i2clipart.com/clipart-warning-sign-512x512-6c4d 
+
+#items
+#treat = https://www.flaticon.com/free-icon/dog-treat_5793514
+#wrench = https://www.freepik.com/premium-vector/wrench-vector-sketch-illustration-wrench-hand-drawn_20701966.htm
+#hammer = https://fineartamerica.com/featured/hammer-karl-addison.html
+#rock = https://openclipart.org/detail/210045/ilmenskie-rock-dull-bg2
+#lenses = https://commons.wikimedia.org/wiki/File:Lens_types.svg
+#SB bars = https://www.nicepng.com/maxp/u2e6w7e6w7r5i1e6/
